@@ -14,7 +14,7 @@
 <meta name="theme-color" content="#0b1026">
 <meta name="format-detection" content="telephone=no">
 <meta name="robots" content="noindex, nofollow">
-<script src="web.js?v=1.12.2"></script>
+<script src="web.js?v=1.12.3"></script>
 <style>
 /* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
 :root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
@@ -688,9 +688,9 @@ function editLetters(){
   setTitle('문자 문구');
   $v().innerHTML = `
     <p class="note" style="margin-top:0">고칠 문자를 고르세요.</p>
-    <div class="kinds">
+    <div class="kinds home">
       <button class="kind tr" onclick="show(()=>editTpl('tr'))">이관고객</button>
-      <button class="kind vu" onclick="show(vuTpls)">밸류업고객<small>기본 문구 + 분류별</small></button>
+      <button class="kind vu" onclick="show(vuTpls)">밸류업고객</button>
     </div>
     <p class="note">문구마다 [인사말] / [약속안내] 탭이 있습니다. 날짜·시간·장소는 약속안내 탭에서 정하고, [약속] 화면에서 고객마다 다시 고칠 수 있습니다.</p>`;
 }
@@ -734,7 +734,7 @@ function editTpl(key){
     </div>
     <div id="pane_a" class="hidden">
       <p class="note" style="margin:8px 0 0">고객 화면 [약속]에서 쓰는 문자입니다. 호칭·머리말·마무리는 인사말 탭과 같고, 아래 칸이 본문 자리에 들어갑니다.</p>
-      <div class="chips" style="margin-top:10px">${chipBtns(CHIP_APPT.concat(CHIP_WHO), "'t_appt'")}</div>
+      <div class="chips" style="margin-top:10px">${chipBtns(CHIP_WHO.concat(CHIP_APPT), "'t_appt'")}</div>
       <textarea id="t_appt" class="tbox" style="min-height:110px" placeholder="약속 안내&#10;예: {날짜} {시간}에 {장소}에서 뵙겠습니다." oninput="tplPreview()">${esc(t.appt)}</textarea>
       <p class="note" style="margin:6px 0 0">{날짜} {시간} {장소} {링크} 자리에 약속 내용이 들어갑니다. 장소명이 없으면 '{장소}에서'는 빠지고, 링크는 {링크}가 없으면 맨 아래에 붙습니다.</p>
       <div class="card" style="margin-top:10px"><div class="meta" style="margin-bottom:8px">약속안내 미리보기 (예: 내일 오후 2시 · 역삼역 스타벅스)</div><div class="preview" id="t_aprev"></div><div class="count" id="t_acnt"></div></div>
