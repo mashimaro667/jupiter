@@ -6,7 +6,7 @@
 //  - 연락처 저장: 연락처 파일(.vcf) → [새로운 연락처 생성]
 // 자료(명단·기록·문구)는 이 휴대폰 브라우저 저장소에만 있다
 (function(){
-  const VERSION = '1.12.1';
+  const VERSION = '1.12.2';
   const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
   const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const say = t => window.toast ? toast(t) : alert(t);
