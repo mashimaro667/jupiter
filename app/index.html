@@ -14,7 +14,7 @@
 <meta name="theme-color" content="#0b1026">
 <meta name="format-detection" content="telephone=no">
 <meta name="robots" content="noindex, nofollow">
-<script src="web.js?v=1.11.0"></script>
+<script src="web.js?v=1.12.0"></script>
 <style>
 /* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
 :root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
@@ -42,11 +42,12 @@ main{padding:16px;max-width:760px;margin:0 auto}
 /* 첫 화면 단추 줄 (1.10.0): 고객 직접 추가 2 : 명단 불러오기 2 : 양식 1 / 아래 줄 문자 문구 · 연락처 양식 반반 */
 .homebar{display:grid;grid-template-columns:2fr 2fr 1fr;gap:8px;margin-top:14px}
 /* 내 이름·직책 (1.11.0): 잠긴 칸 + [수정]/[저장] */
-.mefield{display:grid;grid-template-columns:64px 1fr 72px;gap:8px;align-items:center;margin-bottom:8px}
-.mefield span{font-size:14px;color:var(--sub);font-weight:700}
-.mefield .search{margin:0;padding:10px 12px}
+.mefield{display:grid;grid-template-columns:1.3fr 54px 1fr 54px;gap:6px;align-items:center}   /* 1.12.0: 이름 [수정] 직책 [수정] 가로 한 줄 */
+.kinds.home .kind{text-align:center}   /* 1.12.0: 첫 화면 이관고객·밸류업 가운데 */
+.mefield .search{margin:0;padding:10px 10px;min-width:0}
 .mefield .search:disabled{background:transparent;border-style:dashed;color:var(--text);opacity:1;-webkit-text-fill-color:var(--text)}
-.mefield .btn{min-width:0;padding:10px 4px;font-size:15px}
+.mefield .btn{min-width:0;padding:10px 2px;font-size:14px}
+.mefield .search::placeholder{color:var(--sub);-webkit-text-fill-color:var(--sub);opacity:.8}
 /* 설정 (1.11.0) */
 .setbtn{display:block;width:100%;margin-top:10px;font-weight:700}
 .setbtn small{font-weight:400;color:var(--sub);font-size:13px;margin-left:6px}
@@ -245,9 +246,8 @@ function home(){
   setBrand();
   const n = k => customers.filter(c=>c.kind===k).length;
   $v().innerHTML = `
-    ${meField('name','내 이름','예: 김주성')}
-    ${meField('title','내 직책','예: FC, 팀장')}
-    <div class="kinds" style="margin-top:14px">
+    <div class="mefield">${meField('name','내 이름')}${meField('title','내 직책')}</div>
+    <div class="kinds home" style="margin-top:14px">
       <button class="kind tr" onclick="show(()=>list('tr'))">이관고객<small>${n('tr')}명</small></button>
       <button class="kind vu" onclick="show(()=>list('vu'))">밸류업<small>${n('vu')}명</small></button>
     </div>
@@ -266,10 +266,9 @@ function home(){
 // 평소에는 잠겨 있고 [수정]을 눌러야 고칠 수 있다 → [저장]을 누르면 다시 잠긴다 (쉽게 바뀌지 않게)
 // 문자 문구에서 {내이름} {직책} 자리에 들어간다
 let me = load('me', {name:'', title:''});
-function meField(k, label, ph){
-  return `<div class="mefield"><span>${label}</span>
-    <input class="search" id="me_${k}" value="${esc(me[k])}" placeholder="${ph}" disabled>
-    <button class="btn" id="meb_${k}" onclick="meEdit('${k}')">수정</button></div>`;
+function meField(k, ph){   // 1.12.0: 칸 이름 없이 흐린 안내 글(내 이름 / 내 직책)만
+  return `<input class="search" id="me_${k}" value="${esc(me[k])}" placeholder="${ph}" aria-label="${ph}" disabled>
+    <button class="btn" id="meb_${k}" onclick="meEdit('${k}')">수정</button>`;
 }
 function meEdit(k){
   const inp = document.getElementById('me_'+k), b = document.getElementById('meb_'+k);
