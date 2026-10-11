@@ -13,7 +13,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#ffffff">
 <meta name="format-detection" content="telephone=no">
-<script src="web.js?v=1.8.1"></script>
+<meta name="robots" content="noindex, nofollow">
+<script src="web.js?v=1.8.2"></script>
 <style>
 /* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
 :root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
@@ -32,6 +33,7 @@ main{padding:16px;max-width:760px;margin:0 auto}
 .btn{flex:1;min-width:140px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:14px;font-size:16px}
 .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;font-size:18px;padding:16px}
 .btn.primary.call{background:var(--call);border-color:var(--call)}
+.formdl{display:block;width:100%;border:0;background:none;color:var(--link);font-size:14px;padding:8px 0 0;text-align:center}
 .theme{display:flex;align-items:center;gap:8px;margin-top:18px}
 .theme span{color:var(--sub);font-size:14px;white-space:nowrap}
 .theme .btn{min-width:0;padding:10px 6px;font-size:15px}
@@ -221,16 +223,17 @@ function home(){
       <button class="kind vu" onclick="show(()=>list('vu'))">밸류업<small>${n('vu')}명</small></button>
     </div>
     <button class="btn primary" style="width:100%;margin-top:14px" onclick="show(()=>addForm())">고객 직접 추가</button>
-    <div class="row">
-      <button class="btn" onclick="importList()">명단 불러오기</button>
+    <div class="row" style="align-items:flex-start">
+      <div style="flex:1;min-width:140px"><button class="btn" style="width:100%" onclick="importList()">명단 불러오기</button>
+        <button class="formdl" onclick="downloadForm()">⬇ 명단 양식 다운로드</button></div>
       <button class="btn" onclick="show(editLetters)">문자 문구</button>
     </div>
     <button class="btn" style="width:100%;margin-top:10px" onclick="show(()=>contactFmtForm(null))">연락처 이름 양식: ${contactFmt.mode==='manual'?'수동':'자동'}</button>
     <p class="note">${lastImport ? '마지막으로 불러온 때: '+esc(lastImport)+'<br>' : ''}
-    명단 엑셀은 <b>성격(이관/밸류업) · 월 · 분류 · 이름 · 생년 · 지역 · 연락처</b> 칸으로 만들어 (월: 2026-09, 분류: 밸류업 캠페인) 구글 드라이브에 올린 뒤, [명단 불러오기]에서 고르세요.</p>
+    명단 엑셀은 <b>성격(이관/밸류업) · 월 · 분류 · 이름 · 생년 · 지역 · 연락처</b> 칸으로 만들어 (월: 2026-09, 분류: 밸류업 캠페인) 구글 드라이브에 올린 뒤, [명단 불러오기]에서 고르세요. [명단 양식 다운로드]로 받은 엑셀에 적으면 됩니다.</p>
     <div class="theme"><span>화면</span>
       ${[['auto','자동'],['light','밝게'],['dark','어둡게']].map(([k,t])=>`<button class="btn seg${themeMode===k?' on':''}" onclick="setTheme('${k}')">${t}</button>`).join('')}</div>
-    ${window.webExtra ? webExtra() : ''}`;   // 웹판(아이폰)에서만: 캘린더 고르기·홈 화면 추가 안내 (web.js)
+    ${window.webExtra ? webExtra() : ''}`;   // 웹판(아이폰)에서만: 캘린더 알림 안내·홈 화면 추가 안내 (web.js)
 }
 
 // ---------- 화면 모드: 자동(휴대폰 설정) / 밝게 / 어둡게 ----------
@@ -757,6 +760,8 @@ function importList(){
   if(customers.length) ask('지금 명단에 더할까요, 지우고 새로 넣을까요?', [['더하기',()=>{ window._replace=false; Android.pickFile(); },true],['새로 넣기',()=>{ window._replace=true; Android.pickFile(); }],['취소']]);
   else { window._replace=false; Android.pickFile(); }
 }
+// 명단 양식 다운로드 (1.8.2): 앱은 저장 위치 고르는 창(MainActivity.saveForm), 웹은 파일 받기(web.js)
+function downloadForm(){ if(window.Android && Android.saveForm) Android.saveForm(); else toast('휴대폰 앱에서만 받을 수 있습니다'); }
 function kindOf(s){ s=String(s||''); if(/이관/.test(s)) return 'tr'; if(/밸류|벨류|value|퍼미션/i.test(s)) return 'vu'; return ''; }
 function normPhone(s){ let d=String(s||'').replace(/\D/g,''); if(d.startsWith('82')) d='0'+d.slice(2); if(d.length===10 && d.startsWith('10')) d='0'+d; return d; }
 window.onImportError = e => toast('파일을 읽지 못했습니다: '+e);

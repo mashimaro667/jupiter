@@ -2,39 +2,24 @@
 // 화면(index.html)은 안드로이드 앱과 같은 파일을 쓴다. 앱이 자바에 맡기던 일(window.Android)을 여기서 웹 방식으로 대신한다
 //  - 문자·전화: sms: / tel: 주소 (전송·통화는 문자·전화 앱에서 직접)
 //  - 명단 불러오기: 파일 고르기 → 엑셀(xlsx)·CSV를 이 안에서 읽음 (서버로 보내지 않음)
-//  - 약속·부재중 알림: 캘린더 일정 (구글 캘린더 링크 또는 아이폰 캘린더 파일). 웹은 정한 시각에 알림을 직접 띄울 수 없어서 캘린더 알림으로 대신한다
+//  - 약속·부재중 알림: 캘린더 일정 (구글 캘린더 링크). 웹은 정한 시각에 알림을 직접 띄울 수 없어서 캘린더 알림으로 대신한다
 //  - 연락처 저장: 연락처 파일(.vcf) → [새로운 연락처 생성]
 // 자료(명단·기록·문구)는 이 휴대폰 브라우저 저장소에만 있다
 (function(){
-  const VERSION = '1.8.1';
+  const VERSION = '1.8.2';
   const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
   const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
-  const get = (k, d) => { try{ const v = localStorage.getItem(k); return v==null ? d : JSON.parse(v); }catch(e){ return d; } };
-  const put = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
   const say = t => window.toast ? toast(t) : alert(t);
 
-  // ---------- 캘린더 ----------
-  // google = 구글 캘린더 새 일정 화면(링크) / ios = 아이폰 캘린더 파일(.ics, 알림 시각까지 들어감)
-  const calMode = () => get('webCal', 'google');
+  // ---------- 캘린더: 구글 캘린더 하나로 (1.8.2, 2026-10-11 지시: 아이폰도 구글 캘린더를 쓸 수 있으니 통합) ----------
+  // 구글 캘린더 새 일정 화면(링크)을 채워 연다. 알림은 구글 캘린더의 기본 알림을 따른다
   const utc = ms => new Date(ms).toISOString().replace(/[-:]/g,'').replace(/\.\d+Z$/,'Z');
-  function googleCal(title, begin, end, place, desc){
+  function calendar(title, begin, end, place, desc){
     const q = new URLSearchParams({action:'TEMPLATE', text:title, dates:utc(begin)+'/'+utc(end), details:desc||'', location:place||''});
     return openOut('https://calendar.google.com/calendar/render?' + q);
   }
-  const icsEsc = s => String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
-  function icsText(title, begin, end, place, desc, alarmMin){
-    return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Hanho//Jupiter//KO','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',
-      'UID:'+begin+'-'+Math.random().toString(36).slice(2)+'@jupiter', 'DTSTAMP:'+utc(Date.now()), 'DTSTART:'+utc(begin), 'DTEND:'+utc(end),
-      'SUMMARY:'+icsEsc(title), place?'LOCATION:'+icsEsc(place):'', desc?'DESCRIPTION:'+icsEsc(desc):'',
-      'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEsc(title),'TRIGGER:-PT'+(alarmMin||0)+'M','END:VALARM',
-      'END:VEVENT','END:VCALENDAR'].filter(Boolean).join('\r\n');
-  }
-  function calendar(title, begin, end, place, desc, alarmMin){
-    if(calMode()==='ios') return openFile('jupiter.ics', 'text/calendar', icsText(title, begin, end, place, desc, alarmMin));
-    return googleCal(title, begin, end, place, desc);
-  }
 
-  // ---------- 파일 열기 (캘린더 .ics / 연락처 .vcf) ----------
+  // ---------- 파일 열기 (연락처 .vcf) ----------
   // 홈 화면에 추가한 웹앱 안에서는 이런 파일이 잘 열리지 않아, 앱 범위 밖의 도우미 쪽(../f/open.html)을 사파리 창으로 열어 거기서 연다
   function b64(s){ const u = new TextEncoder().encode(s); let b=''; u.forEach(x=>b+=String.fromCharCode(x)); return btoa(b).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
   function openFile(name, type, text){
@@ -156,29 +141,32 @@
       const v = ['BEGIN:VCARD','VERSION:3.0','N:;'+e(name)+';;;','FN:'+e(name),'TEL;TYPE=CELL:'+phone, notes?'NOTE:'+e(notes):'','END:VCARD'].filter(Boolean).join('\r\n');
       return openFile('contact.vcf', 'text/vcard', v);
     },
-    // 부재중 다시 전화: 그 시각의 캘린더 일정(15분)으로. 아이폰 캘린더 파일이면 시각에 맞춰 알림이 들어간다
+    // 부재중 다시 전화: 그 시각의 구글 캘린더 일정(15분)으로
     setAlarm(id, when, title, text, phone){
-      calendar(title, when, when + 900000, '', [text, '전화: tel:' + phone].filter(Boolean).join('\n'), 0);
+      calendar(title, when, when + 900000, '', [text, '전화: tel:' + phone].filter(Boolean).join('\n'));
       return 'cal';
     },
     // 캘린더에 넣은 일정은 웹에서 지울 수 없다
     cancelAlarm(id){ setTimeout(()=>say('캘린더에 넣은 다시 전화 일정은 캘린더에서 지워 주세요'), 2800); },
-    // 약속: 캘린더 일정 (아이폰 캘린더 파일이면 30분 전 알림)
-    openCalendar(title, begin, end, place, desc){ return calendar(title, begin, end, place, desc, 30); },
+    // 약속: 구글 캘린더 일정
+    openCalendar(title, begin, end, place, desc){ return calendar(title, begin, end, place, desc); },
+    // 명단 양식 다운로드 (1.8.2): 같이 올린 양식 엑셀을 받는다
+    saveForm(){
+      const a = document.createElement('a');
+      a.href = 'form.xlsx'; a.download = '주피터_문자명단_양식.xlsx';
+      document.body.appendChild(a); a.click(); a.remove();
+      say('명단 양식을 받습니다. 다운로드(파일 앱)에서 열어 적으세요');
+    },
     isNightMode(){ return matchMedia('(prefers-color-scheme: dark)').matches; },
     setDark(dark){ const m = document.querySelector('meta[name=theme-color]'); if(m) m.content = dark ? '#1c1f27' : '#ffffff'; },
     pickFile,
     exit(){}
   };
 
-  // 첫 화면 아래: 캘린더 고르기 + (사파리에서 열었으면) 홈 화면 추가 안내
-  window.setWebCal = k => { put('webCal', k); show(home, false); };
+  // 첫 화면 아래: 캘린더 알림 안내 + (사파리에서 열었으면) 홈 화면 추가 안내
   window.webExtra = function(){
-    const m = calMode();
-    return `<div class="theme"><span>캘린더</span>
-      ${[['google','구글 캘린더'],['ios','아이폰 캘린더']].map(([k,t])=>`<button class="btn seg${m===k?' on':''}" onclick="setWebCal('${k}')">${t}</button>`).join('')}</div>
-      <p class="note">약속과 부재중 '다시 전화'는 캘린더 일정으로 들어갑니다. 열린 캘린더에서 [저장]을 눌러야 그 시각에 알림이 옵니다.
-      ${m==='google' ? '구글 캘린더 알림이 일정 시작 때 오게 하려면 구글 캘린더 설정 > 기본 알림을 \'이벤트 시작 시\'로 해 두세요.' : ''}</p>
+    return `<p class="note">약속과 부재중 '다시 전화'는 <b>구글 캘린더</b> 일정으로 들어갑니다. 열린 구글 캘린더에서 [저장]을 눌러야 알림이 옵니다.
+      알림이 일정 시작 때 오게 하려면 구글 캘린더 설정 > 기본 알림을 '이벤트 시작 시'로 해 두세요.</p>
       ${isIOS && !standalone ? `<p class="note" style="color:var(--miss)"><b>먼저 홈 화면에 추가하세요.</b> 사파리 아래 [공유] → [홈 화면에 추가] 후 홈 화면의 주피터로 여세요. 사파리에서 그냥 쓰면 오래 안 열 때 명단·기록이 지워질 수 있습니다.</p>` : ''}
       <p class="note">주피터 웹 v${VERSION} · 명단과 기록은 이 휴대폰에만 저장됩니다.</p>`;
   };
