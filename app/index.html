@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>주피터</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="주피터">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ffffff">
+<meta name="format-detection" content="telephone=no">
+<script src="web.js?v=1.8.0"></script>
+<style>
+/* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
+:root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
+:root[data-theme=dark]{--bg:#111318;--card:#1c1f27;--text:#eceef4;--sub:#9aa1ae;--line:#2d313c;--accent:#5466c4;--link:#9eacff;--accent2:#e6b05a;--ok:#4cc382;--tr:#6f82e6;--vu:#d79a3e;--call:#2b8a52;--miss:#b8473c;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;font-size:17px}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:14px 16px;min-height:58px}
+header h1{font-size:20px;margin:0;flex:1}
+.back{border:0;background:none;color:var(--link);font-size:26px;padding:0 6px 0 0;line-height:1}
+main{padding:16px;max-width:760px;margin:0 auto}
+.kinds{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.kind{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 16px;text-align:left;color:var(--text);font-size:20px;font-weight:700}
+.kind small{display:block;font-size:15px;font-weight:400;color:var(--sub);margin-top:8px}
+.kind.tr{border-top:5px solid var(--tr)} .kind.vu{border-top:5px solid var(--vu)}
+.row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.btn{flex:1;min-width:140px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:14px;font-size:16px}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;font-size:18px;padding:16px}
+.btn.primary.call{background:var(--call);border-color:var(--call)}
+.theme{display:flex;align-items:center;gap:8px;margin-top:18px}
+.theme span{color:var(--sub);font-size:14px;white-space:nowrap}
+.theme .btn{min-width:0;padding:10px 6px;font-size:15px}
+.note{color:var(--sub);font-size:14px;margin-top:12px;line-height:1.5}
+.search{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font-size:16px;margin-bottom:10px}
+ul.names{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+ul.names li{display:flex;align-items:center;gap:10px;padding:15px 16px;border-top:1px solid var(--line)}
+ul.names li:first-child{border-top:0}
+ul.names li{transition:background .6s}
+ul.names li.flash{background:color-mix(in srgb, var(--accent) 18%, var(--card))}
+ul.names li .nm{font-size:18px;flex:1}
+ul.names li .nm .info{font-size:15px;color:var(--sub)}
+ul.names li .nm .sub{display:block;font-size:13px;color:var(--sub);margin-top:3px}
+ul.names li.sec{background:var(--bg);padding:9px 16px;font-weight:700}
+ul.names li.sec .nm{font-size:15px;color:var(--vu)}
+ul.names li .tail{color:var(--sub);font-size:14px}
+ul.names li .sent{color:var(--ok);font-size:13px}
+.empty{padding:28px 16px;text-align:center;color:var(--sub)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+.card h2{margin:0 0 6px;font-size:22px}
+.meta{color:var(--sub);font-size:15px}
+.preview{white-space:pre-wrap;line-height:1.6;font-size:16px}
+.tag{display:inline-block;font-size:13px;padding:2px 8px;border-radius:999px;color:#fff;margin-left:6px;vertical-align:middle}
+.tag.tr{background:var(--tr)} .tag.vu{background:var(--vu)}
+label{display:block;font-weight:700;margin:14px 0 6px}
+label.off{opacity:.4}
+.search:disabled{opacity:.45;background:var(--bg)}
+.btn.seg.on{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+textarea{width:100%;min-height:200px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font-size:16px;line-height:1.5}
+.count{color:var(--sub);font-size:13px;text-align:right;margin-top:4px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222a;color:#fff;padding:12px 18px;border-radius:12px;font-size:15px;display:none;max-width:90%;text-align:center;backdrop-filter:blur(6px)}
+.modal{position:fixed;inset:0;background:#0007;display:none;align-items:center;justify-content:center;z-index:10;padding:16px}
+.modal .box{background:var(--card);border-radius:16px;padding:18px;max-width:420px;width:100%}
+.modal .box .mtext{margin:0 0 14px;line-height:1.6}
+.modal .box .mtext .search{margin:8px 0 0}
+.modal .box .mtext textarea{min-height:110px;margin-top:8px}
+.hidden{display:none}
+/* 기록: 부재중 · 통화완료 · 약속 (1.2.0) */
+.rec3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.rec3 .btn{min-width:0;padding:14px 4px;font-weight:700;color:#fff}
+.btn.miss{background:var(--miss);border-color:var(--miss)} .btn.done{background:var(--call);border-color:var(--call)} .btn.appt{background:var(--accent2);border-color:var(--accent2)}
+.remind{margin-top:10px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb, var(--miss) 12%, var(--card));display:flex;align-items:center;gap:8px;font-size:15px}
+.remind span{flex:1}
+.remind button,.hist button{border:1px solid var(--line);background:var(--card);color:var(--link);border-radius:8px;padding:6px 10px;font-size:14px}
+ul.hist{list-style:none;margin:10px 0 0;padding:0}
+ul.hist li{border-top:1px solid var(--line);padding:10px 0;font-size:15px;line-height:1.5}
+ul.hist li .when{color:var(--sub);font-size:13px;margin-right:6px}
+ul.hist li .memo{display:block;color:var(--sub);font-size:14px;white-space:pre-wrap}
+ul.hist li .acts{display:flex;gap:6px;margin-top:6px}
+ul.hist li .acts .x{margin-left:auto;color:var(--sub)}
+ul.names li .st{font-size:15px}
+/* 문자 문구: 고칠 수 없는 이름 자리 + 호칭 (1.3.0) */
+.namebar{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.namebar .lockname{flex:1;background:var(--bg);border:1px dashed var(--line);border-radius:12px;padding:12px;color:var(--sub);font-weight:700;font-size:15px}
+.namebar .btn{flex:0 0 auto;min-width:0;padding:12px 14px}
+.tbox{margin-top:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.tabs{display:grid;grid-template-columns:1fr 1fr;margin-top:16px;border-bottom:2px solid var(--line)}
+.tabs button{border:0;background:none;color:var(--sub);font-size:17px;font-weight:700;padding:12px 0;margin-bottom:-2px;border-bottom:3px solid transparent}
+.tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.chips button{border:1px solid var(--line);background:var(--card);color:var(--link);border-radius:999px;padding:6px 12px;font-size:14px}
+/* 연락처 이름 양식: 여섯 칸 가로 나열 (1.5.2). 화면이 좁으면 옆으로 밀어 봄 */
+.cfstrip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px}
+.cfslot{display:flex;flex-direction:column;gap:5px;min-width:0}
+.cfslot span{text-align:center;color:var(--sub);font-size:14px}
+.cfslot button{min-height:54px;padding:6px 2px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font-size:13px;line-height:1.3;word-break:keep-all;overflow-wrap:anywhere}
+.cfslot button.off{color:var(--sub);border-style:dashed}
+.cfslot button.grade{min-height:40px;background:color-mix(in srgb, var(--accent) 14%, var(--card));font-weight:700;font-size:16px}
+</style>
+</head>
+<body>
+<header><button class="back hidden" id="back" onclick="goBack()">‹</button><h1 id="title">주피터</h1></header>
+<main id="view"></main>
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="box"><div class="mtext" id="mText"></div><div class="row" id="mBtns"></div></div></div>
+
+<script>
+// ---------- 저장 (휴대폰 안 앱 데이터) ----------
+const KINDS = {tr:'이관고객', vu:'밸류업'};
+// 문자 문구 (1.4.0, 2026-10-11 지시): 문자 = 고객 이름 + 호칭(님/고객님), 머리말 / 본문 / 마무리
+// - 이름 자리는 고칠 수 없다 (1.3.0: {이름}을 문구 안에 두면 지워지거나 바뀔 수 있어서)
+// - 문구는 이관고객 / 밸류업(기본 + 분류별: 쇼핑엔티 등)으로 따로 둔다 (1.6.0: 약속 문자는 약속 화면에서 고객마다 고침). 따로 정하지 않은 밸류업 분류는 밸류업 기본 문구를 쓴다
+// - 저장: letters = {v:3, tpl:{tr, vu, appt, 'vu:쇼핑엔티', ...}}, 문구 하나 = {hon, head, body, tail}
+const HONS = ['님','고객님'];
+const VU_GROUPS = ['쇼핑엔티','더열심히','한신지점','보닥','포인트파크'];   // 밸류업 분류 이름 (2026-10-11 지정)
+const DEFAULT_TPL = {
+  tr:  {hon:'님', head:'안녕하세요.', body:'(이관고객님께 드릴 내용을 [문자 문구]에서 적어 주세요)', tail:'', appt:'{날짜} {시간}에 {장소}에서 뵙겠습니다.'},
+  vu:  {hon:'님', head:'안녕하세요.', body:'(밸류업 고객님께 드릴 내용을 [문자 문구]에서 적어 주세요)', tail:'', appt:'{날짜} {시간}에 {장소}에서 뵙겠습니다.'},
+  appt:{hon:'님', head:'안녕하세요.', body:'{날짜} {시간}에 {장소}에서 뵙겠습니다.', tail:'감사합니다.'}};
+// 예전 저장분을 새 형식으로: 1.2.x '{이름}님, …' / 1.3.x 호칭 + ', …' → 첫 줄은 머리말, 나머지는 본문
+function upgradeLetters(l){
+  if(l.v===3 && l.tpl) return l;
+  const tpl = {};
+  for(const k of ['tr','vu','appt']){
+    if(typeof l[k] !== 'string') continue;
+    let s = l[k], hon = (l.hon||{})[k] || '님';
+    if(l.v!==2){ const m = s.match(/^\s*\{(?:이름|고객명)\}\s*(고객님|님)?/); if(m){ s = s.slice(m[0].length); hon = m[1] || '님'; } }
+    s = s.replace(/^[\s,]+/, '');
+    const nl = s.indexOf('\n');
+    tpl[k] = {hon, head:(nl<0 ? s : s.slice(0,nl)).trim(), body:nl<0 ? '' : s.slice(nl+1), tail:''};
+  }
+  return {v:3, tpl};
+}
+function load(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ toast('저장하지 못했습니다'); } }
+let customers = load('customers', []);          // {kind, name, phone, month: 2026-09, group: 밸류업 분류, year: 1985, region: 불로동, sent: 'yyyy-mm-dd hh:mm' 또는 ''}
+let letters   = upgradeLetters(load('letters', {}));
+// 1.6.0 까지 따로 있던 '약속 문자' 문구를 고쳐 두었으면, 그 본문을 각 문구 약속 칸의 기본값으로 이어 쓴다 (1.7.0)
+if(letters.tpl.appt && letters.tpl.appt.body) DEFAULT_TPL.tr.appt = DEFAULT_TPL.vu.appt = letters.tpl.appt.body;
+const baseOf = key => key.split(':')[0];
+// 문구 고르기: 밸류업 분류에 따로 정한 것이 없으면 밸류업 기본, 빠진 칸은 기본값으로
+function tplOf(key){ const own = letters.tpl[key]; if(!own && key.includes(':')) return tplOf(baseOf(key)); return {...DEFAULT_TPL[baseOf(key)], ...(own||{})}; }
+// 문자 = '이름호칭, 머리말' / 본문 / 마무리 (빈 칸은 건너뜀. 본문에 예전 {이름}이 남아 있으면 그 자리에도 이름)
+function composeTpl(t, name){
+  const head = String(t.head||'').replace(/^[\s,]+/, '');
+  const first = name + (HONS.includes(t.hon) ? t.hon : '님') + (head ? ', ' + head : '');
+  return [first, t.body, t.tail].filter(s=>s && String(s).trim()).join('\n').replace(/\{(이름|고객명)\}/g, name);
+}
+function composeText(key, name){ return composeTpl(tplOf(key), name); }
+let lastImport = load('lastImport', '');
+
+// ---------- 화면 이동 ----------
+const stack = [];
+function show(fn, push=true){ if(push) stack.push(fn); curRoute = ['home']; fn(); fn._route = curRoute; saveNav(); document.getElementById('back').classList.toggle('hidden', stack.length<=1); window.scrollTo(0,0); }
+function goBack(){ if(stack.length>1){ stack.pop(); show(stack[stack.length-1], false); scrollToLast(); } else { clearNav(); if(window.Android) Android.exit(); } }
+
+// ---------- 보던 화면 되살리기 (1.3.2) ----------
+// 다른 앱에 다녀오는 사이 휴대폰이 앱을 정리하면 처음 화면부터 다시 열린다. 화면마다 자기 주소(curRoute)를 남겨 두고,
+// 다시 열릴 때 12시간 안이면 그 화면들(뒤로 가기 순서까지)을 되살린다. 고객은 번호로 찾는다 (목록 순서가 바뀌어도 맞게)
+let curRoute = ['home'];
+const NAV_KEEP = 12*3600000;
+function saveNav(){ save('nav', {at:Date.now(), routes:stack.map(f=>f._route || ['home'])}); }
+function clearNav(){ try{ localStorage.removeItem('nav'); }catch(e){} }
+function idxOf(phone){ return customers.findIndex(c=>c.phone===phone); }
+function routeFn(r){
+  const [v,a,b] = r || [];
+  if(v==='home') return home;
+  if(v==='list' && KINDS[a]) return ()=>list(a);
+  if(v==='month' && KINDS[a]) return ()=>month(a, b ?? null);
+  if(v==='letters') return editLetters;
+  if(v==='contactFmt'){ const i = a ? idxOf(a) : -1; return ()=>contactFmtForm(i>=0 ? i : null); }
+  if(v==='vutpls') return vuTpls;
+  if(v==='tpl' && typeof a==='string' && DEFAULT_TPL[baseOf(a)]) return ()=>editTpl(a);
+  if(v==='add') return ()=>addForm(a, b);
+  if((v==='detail' || v==='appt') && idxOf(a)>=0){ const i = idxOf(a); return v==='detail' ? ()=>detail(i) : ()=>apptForm(i); }
+  return null;
+}
+function restoreNav(){
+  const n = load('nav', null);
+  if(!n || !Array.isArray(n.routes) || Date.now()-n.at > NAV_KEEP) return false;
+  const fns = n.routes.map(r=>{ const f = routeFn(r); if(f) f._route = r; return f; });
+  if(fns.length<2 || fns.some(f=>!f)) return false;
+  stack.length = 0; fns.slice(0,-1).forEach(f=>stack.push(f));
+  const d = n.routes[n.routes.length-1];
+  if(d[0]==='detail' || d[0]==='appt') window._lastIdx = idxOf(d[1]);   // 고객 화면에서 뒤로 가면 목록에서 그 고객 위치로
+  show(fns[fns.length-1]);
+  return true;
+}
+// 목록에서 고객을 눌렀다가 돌아오면, 방금 누른 고객이 맨 위(머리글 바로 아래)에 오게 내려 두고 잠깐 표시한다
+function openDetail(i){ window._lastIdx = i; show(()=>detail(i)); }
+function scrollToLast(){
+  const i = window._lastIdx;
+  const li = i==null ? null : document.querySelector(`#names li[data-i="${i}"]`);
+  if(!li) return;   // 목록이 아닌 화면(문자 문구 등)에서 돌아온 때는 기억해 두었다가 목록으로 돌아올 때 쓴다
+  window._lastIdx = null;
+  const head = document.querySelector('header').offsetHeight;
+  window.scrollTo(0, li.getBoundingClientRect().top + window.scrollY - head - 8);
+  li.classList.add('flash'); setTimeout(()=>li.classList.remove('flash'), 1200);
+}
+window.onBack = function(){ if(document.getElementById('modal').style.display==='flex'){ closeModal(); return; } goBack(); };
+const $v = () => document.getElementById('view');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function setTitle(t){ document.getElementById('title').textContent = t; }
+function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.style.display='block'; clearTimeout(e._t); e._t=setTimeout(()=>e.style.display='none',2600); }
+function ask(text, buttons){ document.getElementById('mText').textContent=text; const b=document.getElementById('mBtns'); b.innerHTML='';
+  buttons.forEach(([label,fn,primary])=>{ const x=document.createElement('button'); x.className='btn'+(primary?' primary':''); x.textContent=label; x.onclick=()=>{ closeModal(); fn&&fn(); }; b.appendChild(x); });
+  document.getElementById('modal').style.display='flex'; }
+function closeModal(){ document.getElementById('modal').style.display='none'; }
+
+// ---------- 첫 화면: 이관 / 밸류업 ----------
+function home(){
+  setTitle('주피터');
+  const n = k => customers.filter(c=>c.kind===k).length;
+  $v().innerHTML = `
+    <div class="kinds">
+      <button class="kind tr" onclick="show(()=>list('tr'))">이관고객<small>${n('tr')}명</small></button>
+      <button class="kind vu" onclick="show(()=>list('vu'))">밸류업<small>${n('vu')}명</small></button>
+    </div>
+    <button class="btn primary" style="width:100%;margin-top:14px" onclick="show(()=>addForm())">고객 직접 추가</button>
+    <div class="row">
+      <button class="btn" onclick="importList()">명단 불러오기</button>
+      <button class="btn" onclick="show(editLetters)">문자 문구</button>
+    </div>
+    <button class="btn" style="width:100%;margin-top:10px" onclick="show(()=>contactFmtForm(null))">연락처 이름 양식: ${contactFmt.mode==='manual'?'수동':'자동'}</button>
+    <p class="note">${lastImport ? '마지막으로 불러온 때: '+esc(lastImport)+'<br>' : ''}
+    명단 엑셀은 <b>성격(이관/밸류업) · 월 · 분류 · 이름 · 생년 · 지역 · 연락처</b> 칸으로 만들어 (월: 2026-09, 분류: 밸류업 캠페인) 구글 드라이브에 올린 뒤, [명단 불러오기]에서 고르세요.</p>
+    <div class="theme"><span>화면</span>
+      ${[['auto','자동'],['light','밝게'],['dark','어둡게']].map(([k,t])=>`<button class="btn seg${themeMode===k?' on':''}" onclick="setTheme('${k}')">${t}</button>`).join('')}</div>
+    ${window.webExtra ? webExtra() : ''}`;   // 웹판(아이폰)에서만: 캘린더 고르기·홈 화면 추가 안내 (web.js)
+}
+
+// ---------- 화면 모드: 자동(휴대폰 설정) / 밝게 / 어둡게 ----------
+let themeMode = load('theme', 'auto');
+function applyTheme(){
+  const sysDark = window.Android && Android.isNightMode ? Android.isNightMode() : matchMedia('(prefers-color-scheme: dark)').matches;
+  const dark = themeMode==='dark' || (themeMode==='auto' && sysDark);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  if(window.Android && Android.setDark) Android.setDark(dark);   // 위 상태 표시줄·아래 버튼 줄 색도 맞춘다
+}
+function setTheme(k){ themeMode = k; save('theme', k); applyTheme(); show(home, false); }
+applyTheme();
+
+// ---------- 월 · 분류 ----------
+// 월: '2026-09' (이관 = 캠페인 대상월, 밸류업 = FC배분월). 올해는 '9월', 다른 해는 '2025년 9월'. 최근 달이 위로
+// 분류: 밸류업 캠페인 이름(쇼핑엔티·더열심히·한신지점·보닥·포인트파크 등). 예전 명단처럼 분류 칸에 월이 들어 있으면 월로 본다
+const YM = /^\d{4}-\d{1,2}$/;
+function monthOf(c){ return c.month || (YM.test(c.group||'') ? c.group : ''); }
+function groupOf(c){ return YM.test(c.group||'') ? '' : (c.group||''); }
+function monthLabel(m){ const x=String(m||'').match(/^(\d{4})-(\d{1,2})$/); if(!x) return '월 모름'; return (+x[1]===new Date().getFullYear()?'':x[1]+'년 ')+(+x[2])+'월'; }
+function monthKey(m){ const x=String(m||'').match(/^(\d{4})-(\d{1,2})$/); return x ? x[1]+x[2].padStart(2,'0') : '0'; }
+function normMonth(s){ s=String(s||'').trim(); const x=s.match(/(20\d{2})\D{0,3}(\d{1,2})/); return x && +x[2]>=1 && +x[2]<=12 ? x[1]+'-'+x[2].padStart(2,'0') : ''; }
+
+// ---------- 고객 한 줄 정보: 85년생 / 불로동 ----------
+// 지역은 가장 구체적인 한 단계만: 동(읍·면·가) → 구 → 시(군) → 시도. 엑셀에 주소 전체를 적어도 여기서 줄인다
+const SIDO = /^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|충청북|충청남|전라북|전라남|경상북|경상남)/;
+function shortRegion(a){
+  a = String(a||'').replace(/\[[^\]]*\]/g,' ').replace(/\(\d{5}\)/g,' ');
+  if(!a.trim()) return '';
+  const m = a.match(/\(\s*([가-힣]+\d*(?:동|읍|면|\d가))\s*[,)]/); if(m) return m[1];
+  const tok = a.split(/[\s,()\/]+/).filter(Boolean);
+  // 띄어쓰기 없이 붙은 주소 (서울특별시광진구자양동): 시·군·구·도 뒤의 동 → 구 → 시
+  for(const [re,min] of [[/(?:시|군|구|도)([가-힣]{1,4}\d*(?:동|읍|면)|[가-힣]{1,3}\d가)$/,6],[/(?:시|도)([가-힣]{1,4}구)$/,5],[/도([가-힣]{1,4}(?:시|군))$/,5]])
+    for(const t of tok){ const x = t.length>=min && t.match(re); if(x) return x[1]; }
+  return tok.find(t=>(t.length<=5 && /^[가-힣]+\d*(동|읍|면)$/.test(t)) || /^[가-힣]+\d가$/.test(t))
+      || tok.find(t=>/^[가-힣]{1,4}구$/.test(t))
+      || tok.find(t=>/^[가-힣]+(시|군)$/.test(t) && !/(특별|광역|자치)시$/.test(t))
+      || (tok.find(t=>SIDO.test(t))||'').replace(/^(충청|전라|경상)(북|남).*/,(x,a,b)=>({충청:'충',전라:'전',경상:'경'})[a]+b).slice(0,2);
+}
+function birthYear(v){ const s=String(v||'').trim(); let m=s.match(/^((?:19|20)\d{2})/); if(m) return m[1];
+  m=s.match(/^(\d{2})\d{4}-([1-8])/); if(m) return ('1256'.includes(m[2])?'19':'20')+m[1];
+  m=s.match(/^(\d{2})(년생)?$/); if(m) return (+m[1]>30?'19':'20')+m[1]; return ''; }
+function info(c){ return [c.year?String(c.year).slice(2)+'년생':'', c.region||''].filter(Boolean).join(' / '); }
+
+// ---------- 고객 목록: 월 → (밸류업은 분류별로 묶어서) 이름 ----------
+const matchQ = (c,q) => !q || c.name.includes(q) || (c.region||'').includes(q);
+const byName = (a,b) => a.name.localeCompare(b.name,'ko');
+function list(kind){
+  curRoute = ['list', kind];
+  setTitle(KINDS[kind]);
+  const all = customers.filter(c=>c.kind===kind);
+  if(!all.some(monthOf)){ month(kind, null); return; }   // 월이 없는 명단은 바로 이름 목록
+  window._months = [...new Set(all.map(monthOf))].sort((a,b)=>monthKey(b).localeCompare(monthKey(a)));
+  $v().innerHTML = `<input class="search" id="q" placeholder="이름·지역 찾기 (전체)" oninput="drawMonths('${kind}')">
+    <ul class="names" id="names"></ul>
+    <p class="note">${all.length}명 · ${kind==='tr'?'대상월':'유입된 월'}별로 나눴습니다.</p>`;
+  drawMonths(kind);
+}
+function drawMonths(kind){
+  const q = (document.getElementById('q')?.value || '').trim();
+  const all = customers.map((c,i)=>({...c,i})).filter(c=>c.kind===kind);
+  if(q){ document.getElementById('names').innerHTML = rowsHtml(all.filter(c=>matchQ(c,q)).sort(byName)); return; }   // 찾을 때는 월과 상관없이
+  document.getElementById('names').innerHTML = window._months.map((m,mi)=>{
+    const cs = all.filter(c=>monthOf(c)===m), sent = cs.filter(c=>c.sent).length;
+    // 밸류업은 그 달의 분류를 한 줄로 미리 보여 준다: 쇼핑엔티 40 · 한신지점 5
+    const gs = kind==='vu' ? groupCounts(cs).map(([g,n])=>`${g} ${n}`).join(' · ') : '';
+    return `<li onclick="openMonth('${kind}', ${mi})"><span class="nm">${esc(monthLabel(m))}${gs?`<span class="sub">${esc(gs)}</span>`:''}</span>
+      ${sent?`<span class="sent">✓ ${sent}</span>`:''}<span class="tail">${cs.length}명</span></li>`;
+  }).join('');
+}
+function groupCounts(cs){
+  const m = new Map(); cs.forEach(c=>{ const g=groupOf(c)||'분류 없음'; m.set(g,(m.get(g)||0)+1); });
+  return [...m].sort((a,b)=>(a[0]==='분류 없음')-(b[0]==='분류 없음') || b[1]-a[1] || a[0].localeCompare(b[0],'ko'));
+}
+function openMonth(kind, mi){ const m = window._months[mi]; show(()=>month(kind, m)); }
+function month(kind, m){
+  curRoute = ['month', kind, m];
+  setTitle(m==null ? KINDS[kind] : `${KINDS[kind]} ${monthLabel(m)}`);
+  const n = customers.filter(c=>c.kind===kind && (m==null || monthOf(c)===m)).length;
+  $v().innerHTML = `<input class="search" id="q" placeholder="이름·지역 찾기" oninput="drawMonth('${kind}', window._curMonth)">
+    <ul class="names" id="names"></ul>
+    <p class="note">${n}명 · 보낸 고객은 날짜가 표시됩니다.</p>
+    <button class="btn" style="width:100%" onclick="show(()=>addForm('${kind}', window._curMonth))">이 목록에 고객 추가</button>`;
+  window._curMonth = m;
+  drawMonth(kind, m);
+}
+function drawMonth(kind, m){
+  const q = (document.getElementById('q')?.value || '').trim();
+  const rows = customers.map((c,i)=>({...c,i})).filter(c=>c.kind===kind && (m==null || monthOf(c)===m) && matchQ(c,q));
+  // 밸류업은 분류(캠페인)별 제목 아래에 이름을 모아 보여 준다
+  if(kind==='vu' && rows.some(groupOf)){
+    document.getElementById('names').innerHTML = rows.length ? groupCounts(rows).map(([g,n])=>
+      `<li class="sec"><span class="nm">${esc(g)}</span><span class="tail">${n}명</span></li>` +
+      rowsHtml(rows.filter(c=>(groupOf(c)||'분류 없음')===g).sort(byName))).join('') : rowsHtml([]);
+  } else document.getElementById('names').innerHTML = rowsHtml(rows.sort(byName));
+}
+function rowsHtml(rows){
+  return rows.length ? rows.map(c=>`
+    <li data-i="${c.i}" onclick="openDetail(${c.i})"><span class="nm">${esc(c.name)}${info(c)?`<span class="info"> / ${esc(info(c))}</span>`:''}</span>
+      ${recMark(c)?`<span class="st">${recMark(c)}</span>`:''}
+      ${c.sent?`<span class="sent">✓ ${esc(c.sent.slice(5,10).replace('-','/'))}</span>`:''}
+      <span class="tail">${esc(c.phone.slice(-4))}</span></li>`).join('') : '<li class="empty">고객이 없습니다. 첫 화면의 [명단 불러오기]로 엑셀을 불러오세요.</li>';
+}
+
+// ---------- 고객 화면: 문자 미리보기 + [문자 보내기] ----------
+// 고객에게 맞는 문구: 밸류업은 분류(쇼핑엔티 등)별 → 없으면 밸류업 기본
+function keyFor(c){ const g = c.kind==='vu' ? groupOf(c) : ''; return g ? 'vu:'+g : c.kind; }
+function letterFor(c){ return composeText(keyFor(c), c.name); }
+function fmtPhone(p){ return p.length===11 ? p.replace(/(\d{3})(\d{4})(\d{4})/,'$1-$2-$3') : p.length===10 ? p.replace(/(\d{3})(\d{3})(\d{4})/,'$1-$2-$3') : p; }
+function detail(i){
+  const c = customers[i]; if(!c){ goBack(); return; }
+  curRoute = ['detail', c.phone];
+  setTitle(c.name);
+  $v().innerHTML = `
+    <div class="card"><h2>${esc(c.name)}<span class="tag ${c.kind}">${KINDS[c.kind]}</span></h2>
+      <div class="meta">${esc(fmtPhone(c.phone))}${c.sent?' · 보낸 날: '+esc(c.sent):''}</div>
+      ${info(c)?`<div class="meta">${esc(info(c))}</div>`:''}
+      ${monthOf(c)||groupOf(c)?`<div class="meta">${esc([monthOf(c)?monthLabel(monthOf(c)):'', groupOf(c)].filter(Boolean).join(' · '))}</div>`:''}</div>
+    <div class="card"><div class="meta" style="margin-bottom:8px">보낼 문자</div><div class="preview">${esc(letterFor(c))}</div></div>
+    <div class="row"><button class="btn primary" onclick="sendTo(${i})">문자 보내기</button>
+      <button class="btn primary call" onclick="callTo(${i})">전화 걸기</button></div>
+    ${recordCard(i)}
+    <button class="btn" style="width:100%;margin-top:10px;font-weight:700" onclick="saveContact(${i})">연락처 저장</button>
+    <div class="meta" style="margin-top:6px;text-align:center">${esc(contactName(c))} · <a href="#" style="color:var(--link)" onclick="show(()=>contactFmtForm(${i}));return false">양식 ${contactFmt.mode==='manual'?'수동':'자동'} ›</a></div>
+    <div class="row"><button class="btn" onclick="show(()=>editTpl(keyFor(customers[${i}])))">문자 문구 고치기</button>
+      <button class="btn" onclick="removeCustomer(${i})">명단에서 빼기</button></div>
+    <p class="note">[문자 보내기]를 누르면 문자 앱이 이 고객과 문자가 채워진 채로 열립니다. 문자 앱에서 보내기를 누르면 전송됩니다.<br>[전화 걸기]를 누르면 전화 앱에 번호가 입력된 채로 열립니다. 통화 버튼을 누르면 연결됩니다.<br>[연락처 저장]을 누르면 연락처 앱의 새 연락처 화면이 위 이름과 메모(유입월·구분)로 채워져 열립니다. 저장을 누르면 저장됩니다.</p>`;
+}
+
+// ---------- 기록: 부재중 · 통화완료 · 약속 (1.2.0, 2026-10-11 지시) ----------
+// 기록은 연락처 번호별로 따로 둔다 (명단을 '새로 넣기'로 다시 불러와도 남게)
+// 부재중: 1·2·3시간 뒤 또는 정한 시각에 '다시 전화' 휴대폰 알림 (고객마다 하나, 새로 걸면 바뀜. 통화완료를 적으면 꺼짐)
+// 약속: 날짜·시간·장소 → 구글 캘린더 새 일정 화면을 채워 열고, 돌아오면 약속 화면에서 고친 약속 문자를 문자 앱에 채워 연다
+let records = load('records', {});   // 번호 → [{type:'miss'|'call'|'appt', at:'yyyy-mm-dd hh:mm', remindAt:밀리초, off, memo, date:'yyyy-mm-dd', time:'hh:mm', place}]
+const RN = {miss:'부재중', call:'통화완료', appt:'약속'}, RI = {miss:'📵', call:'✅', appt:'📅'};
+const REC = Object.fromEntries(Object.keys(RN).map(k=>[k, RI[k]+' '+RN[k]]));
+const recsOf = c => records[c.phone] || [];
+function addRec(c, r){ (records[c.phone] = records[c.phone] || []).push({at:now(), ...r}); save('records', records); }
+const alarmId = c => parseInt(c.phone.slice(-9), 10) || 1;
+const pendingRemind = c => recsOf(c).find(r=>r.type==='miss' && r.remindAt && !r.off && r.remindAt > Date.now());
+const z2 = n => String(n).padStart(2,'0');
+function whenLabel(ms){
+  const d = new Date(ms), t = new Date(), day = 86400000;
+  const k = Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate()) - new Date(t.getFullYear(),t.getMonth(),t.getDate())) / day);
+  return (k===0?'오늘':k===1?'내일':`${d.getMonth()+1}/${d.getDate()}`) + ` ${z2(d.getHours())}:${z2(d.getMinutes())}`;
+}
+const WEEK = '일월화수목금토';
+function apptDate(s){ const d = new Date(s+'T00:00'); return isNaN(d) ? s : `${d.getMonth()+1}월 ${d.getDate()}일(${WEEK[d.getDay()]})`; }
+function apptTime(s){ const m = String(s||'').match(/^(\d{1,2}):(\d{2})/); if(!m) return s||''; const h=+m[1], mi=+m[2];
+  return `${h<12?'오전':'오후'} ${h%12||12}시${mi?` ${mi}분`:''}`; }
+function recordCard(i){
+  const c = customers[i], p = pendingRemind(c);
+  const hist = recsOf(c).map((r,k)=>({...r,k})).reverse();
+  return `<div class="card" style="margin-top:14px"><div class="meta" style="margin-bottom:8px">기록</div>
+    <div class="rec3"><button class="btn miss" onclick="recMiss(${i})">부재중</button>
+      <button class="btn done" onclick="recCall(${i})">통화완료</button>
+      <button class="btn appt" onclick="show(()=>apptForm(${i}))">약속</button></div>
+    ${p?`<div class="remind"><span>⏰ ${esc(whenLabel(p.remindAt))}에 다시 전화 알림</span><button onclick="offRemind(${i})">알림 끄기</button></div>`:''}
+    ${hist.length?`<ul class="hist">${hist.map(r=>`<li><span class="when">${esc(r.at.slice(5).replace('-','/'))}</span>${REC[r.type]||''}
+      ${r.type==='miss' && r.remindAt?`<span class="meta"> · ⏰ ${esc(whenLabel(r.remindAt))}${r.off?' (꺼짐)':''}</span>`:''}
+      ${r.type==='appt'?`<span class="memo">${esc(apptDate(r.date))} ${esc(apptTime(r.time))}${r.place?' · '+esc(r.place):''}${r.link?'<br>🔗 '+esc(r.link):''}</span>`:''}
+      ${r.memo?`<span class="memo">${esc(r.memo)}</span>`:''}
+      <div class="acts">${r.type==='appt'?`<button onclick="apptCal(${i},${r.k})">캘린더</button><button onclick="apptSms(${i},${r.k})">약속 문자</button>`:''}
+        <button class="x" onclick="delRec(${i},${r.k})">지우기</button></div></li>`).join('')}</ul>`
+      :'<p class="note" style="margin:10px 0 0">아직 기록이 없습니다.</p>'}</div>`;
+}
+// 입력 칸이 있는 창 (부재중 시각 정하기·통화 메모)
+function askForm(text, html, buttons){
+  ask(text, buttons); const m = document.getElementById('mText');
+  m.innerHTML = esc(text) + html; const f = m.querySelector('input,textarea'); if(f) setTimeout(()=>f.focus(), 50);
+}
+function recMiss(i){
+  const h = n => () => missWith(i, Date.now() + n*3600000);
+  ask('부재중으로 적습니다. 언제 다시 전화할지 알림을 걸까요?', [['1시간 뒤',h(1),true],['2시간 뒤',h(2),true],['3시간 뒤',h(3),true],
+    ['시간 정하기',()=>pickTime(i)],['알림 없이 기록만',()=>missWith(i, 0)],['취소']]);
+}
+function localInput(ms){ const d = new Date(ms); return `${d.getFullYear()}-${z2(d.getMonth()+1)}-${z2(d.getDate())}T${z2(d.getHours())}:${z2(d.getMinutes())}`; }
+function pickTime(i){
+  askForm('알림 받을 날짜와 시각', `<input class="search" id="m_when" type="datetime-local" value="${localInput(Date.now()+3600000)}">`,
+    [['알림 걸기',()=>{ const ms = new Date(document.getElementById('m_when').value).getTime();
+        if(!(ms > Date.now())){ toast('지금보다 뒤의 시각을 골라 주세요'); setTimeout(()=>pickTime(i), 300); return; }
+        missWith(i, ms); },true],['취소']]);
+}
+function missWith(i, ms){
+  const c = customers[i];
+  if(ms){
+    recsOf(c).forEach(r=>{ if(r.remindAt) r.off = true; });   // 앞서 걸어 둔 알림은 새 것으로 바뀐다
+    addRec(c, {type:'miss', remindAt:ms});
+    const st = window.Android ? Android.setAlarm(alarmId(c), ms, `📞 다시 전화: ${c.name}`, [fmtPhone(c.phone), info(c)].filter(Boolean).join(' · '), c.phone) : 'ok';
+    toast(`${whenLabel(ms)}에 알림이 옵니다` + (st==='ask' ? ' · 알림 [허용]을 눌러 주세요' : st==='cal' ? ' · 캘린더에서 [저장]을 눌러 주세요' : ''));   // cal = 웹판(캘린더 일정으로 알림)
+  } else { addRec(c, {type:'miss'}); toast('부재중으로 적었습니다'); }
+  detail(i);
+}
+window.onNotifyPerm = ok => { if(!ok) toast('알림이 꺼져 있어 다시 전화 알림이 오지 않습니다. 휴대폰 설정 > 앱 > 주피터 > 알림에서 켜 주세요'); };
+function offRemind(i, quiet){
+  const c = customers[i], p = pendingRemind(c); if(!p) return;
+  p.off = true; save('records', records);
+  if(window.Android) Android.cancelAlarm(alarmId(c));
+  if(!quiet){ toast('알림을 껐습니다'); detail(i); }
+}
+function recCall(i){
+  askForm('통화완료로 적습니다. 메모 (적지 않아도 됩니다)', `<textarea id="m_memo" placeholder="예: 다음 주 방문 원하심"></textarea>`,
+    [['저장',()=>{ const c = customers[i], had = pendingRemind(c);
+        addRec(c, {type:'call', memo:document.getElementById('m_memo').value.trim()});
+        if(had) offRemind(i, true);
+        toast('통화완료로 적었습니다' + (had ? ' · 다시 전화 알림은 껐습니다' : '')); detail(i); },true],['취소']]);
+}
+function delRec(i, k){
+  const c = customers[i], r = recsOf(c)[k]; if(!r) return;
+  ask(`${RN[r.type]||''} 기록(${r.at.slice(5).replace('-','/')})을 지울까요?`, [['지우기',()=>{
+    if(r === pendingRemind(c)) offRemind(i, true);
+    records[c.phone].splice(k, 1); save('records', records); detail(i); },true],['취소']]);
+}
+
+// 약속: 날짜 · 시간 · 장소 (+메모)
+function apptForm(i){
+  const c = customers[i]; setTitle(c.name + ' 약속');
+  curRoute = ['appt', c.phone];
+  const t = new Date(Date.now()+86400000), tomorrow = `${t.getFullYear()}-${z2(t.getMonth()+1)}-${z2(t.getDate())}`;
+  $v().innerHTML = `
+    <label>날짜</label><input class="search" id="a_date" type="date" value="${tomorrow}" oninput="apptPreview(${i})">
+    <label>시간</label><input class="search" id="a_time" type="time" value="14:00" oninput="apptPreview(${i})">
+    <label>장소명 <span class="meta" style="font-weight:400">(적지 않아도 됨)</span></label><input class="search" id="a_place" placeholder="예: 역삼역 스타벅스" oninput="apptPreview(${i})">
+    <label>장소 링크 <span class="meta" style="font-weight:400">(지도·화상회의 주소, 적지 않아도 됨)</span></label><input class="search" id="a_link" type="url" inputmode="url" placeholder="예: https://naver.me/..." oninput="apptPreview(${i})">
+    <label>메모 <span class="meta" style="font-weight:400">(캘린더에만 들어감, 적지 않아도 됨)</span></label><input class="search" id="a_memo" placeholder="예: 보장분석 자료 준비">
+    <label>보낼 약속 문자 <span class="meta" style="font-weight:400">(이 고객에게 맞게 바로 고쳐 쓰면 됨)</span></label>
+    <textarea id="a_msg" style="min-height:150px" oninput="window._apptDirty=true"></textarea>
+    <div class="count"><a href="#" style="color:var(--link)" onclick="window._apptDirty=false;apptPreview(${i});return false">날짜·장소대로 다시 쓰기</a></div>
+    <button class="btn primary" style="width:100%;margin-top:10px" onclick="saveAppt(${i})">저장 → 캘린더 → 문자</button>
+    <p class="note">저장하면 약속이 기록되고 구글 캘린더의 새 일정 화면이 채워진 채로 열립니다. 캘린더에서 저장하고 돌아오면 위 약속 문자를 보낼지 묻습니다.</p>`;
+  window._apptDirty = false;
+  apptPreview(i);
+}
+// 장소명·링크 (1.3.1): 둘 다 적지 않아도 된다. 장소명이 없으면 문구의 '{장소}에서'를 통째로 뺀다.
+// 링크는 문구에 {링크}가 있으면 그 자리에, 없으면 문자 맨 아래 '위치: 링크' 줄로 붙인다
+function normLink(s){ s = String(s||'').trim(); return !s || /^[a-z][a-z0-9+.-]*:/i.test(s) ? s : 'https://' + s; }
+// 약속 문자 (1.7.0): 그 고객 문구(이관 / 밸류업 분류별)의 약속 칸을 본문으로, 호칭·머리말·마무리는 그 문구 그대로
+// 약속 칸이 없던 예전 저장분은 예전 '약속 문자' 문구의 본문(없으면 기본)을 쓴다
+function apptBody(t){ return t.appt ?? (letters.tpl.appt && letters.tpl.appt.body) ?? DEFAULT_TPL.tr.appt; }
+function apptText(c, r){ const t = tplOf(keyFor(c)); return apptFill(composeTpl({...t, body:apptBody(t)}, c.name), r); }
+function apptFill(t, r){
+  t = t.replace(/\{날짜\}/g, apptDate(r.date)).replace(/\{시간\}/g, apptTime(r.time));
+  t = r.place ? t.replace(/\{장소\}/g, r.place) : t.replace(/\s*\{장소\}(에서|으로|로|에)?/g, '');
+  if(/\{링크\}/.test(t)) t = t.replace(/\{링크\}/g, r.link || '');
+  else if(r.link) t += '\n위치: ' + r.link;
+  return t;
+}
+// 약속 문자 (1.6.0): [문자 문구]에서 따로 정하지 않고 약속 화면에서 고객마다 바로 고친다.
+// 날짜·장소를 바꾸면 기본 문구로 다시 채우되, 손으로 고친 뒤에는 덮어쓰지 않는다 (_apptDirty)
+function apptPreview(i){
+  if(window._apptDirty) return;
+  const g = id => document.getElementById(id).value.trim();
+  document.getElementById('a_msg').value = apptText(customers[i], {date:g('a_date'), time:g('a_time'), place:g('a_place'), link:normLink(g('a_link'))});
+}
+function saveAppt(i){
+  const g = id => document.getElementById(id).value.trim(), c = customers[i];
+  const r = {type:'appt', date:g('a_date'), time:g('a_time'), place:g('a_place'), link:normLink(g('a_link')), memo:g('a_memo'), msg:document.getElementById('a_msg').value};
+  if(!r.date || !r.time){ toast('날짜와 시간을 골라 주세요'); return; }
+  addRec(c, r);
+  const k = recsOf(c).length - 1;
+  stack.pop(); show(stack[stack.length-1], false);   // 고객 화면으로 돌아와서
+  // 캘린더에서 돌아오면 약속 문자를 보낼지 묻는다. 그사이 휴대폰이 앱을 정리해도 물을 수 있게 앱 저장소에 적어 둔다 (1.3.2)
+  save('afterCal', {phone:c.phone, k, at:Date.now()});
+  if(!apptCal(i, k, true)) checkAfterCal(0);
+}
+// 캘린더에서 돌아오면 (MainActivity.onResume, 또는 앱이 다시 열릴 때) — 1시간 안의 것만
+function checkAfterCal(delay=400){
+  const a = load('afterCal', null); if(!a) return;
+  try{ localStorage.removeItem('afterCal'); }catch(e){}
+  if(Date.now()-a.at > 3600000) return;
+  setTimeout(()=>{ const i = idxOf(a.phone); if(i>=0) ask('약속 문자도 보낼까요?', [['문자 보내기',()=>apptSms(i, a.k),true],['나중에']]); }, delay);
+}
+window.onResumeApp = () => checkAfterCal();
+function apptCal(i, k, quiet){
+  const c = customers[i], r = recsOf(c)[k]; if(!r) return false;
+  const begin = new Date(`${r.date}T${r.time}`).getTime();
+  // 캘린더: 위치 칸 = 장소명(없으면 링크), 설명 = 연락처 · 구분 · 링크 · 메모
+  const desc = [fmtPhone(c.phone), [KINDS[c.kind], info(c)].filter(Boolean).join(' · '), r.link?'위치: '+r.link:'', r.memo].filter(Boolean).join('\n');
+  const ok = window.Android ? Android.openCalendar(`${c.name} 고객 상담`, begin, begin + 3600000, r.place || r.link || '', desc) : false;
+  if(!ok) toast('캘린더 앱을 열지 못했습니다');
+  return ok;
+}
+function apptSms(i, k){
+  const c = customers[i], r = recsOf(c)[k]; if(!r) return;
+  const text = r.msg || apptText(c, r);   // 약속 화면에서 고친 문자 (1.6.0 전 기록은 기본 문구로)
+  const ok = window.Android ? Android.openSms(c.phone, text) : (toast(text), true);
+  if(!ok) toast('문자 앱을 열지 못했습니다');
+}
+// 알림을 눌러 앱이 열리면 그 고객 화면으로
+window.openByPhone = function(phone){
+  const i = customers.findIndex(c=>c.phone===phone); if(i<0) return;
+  closeModal(); stack.length = 0; stack.push(home); openDetail(i);
+};
+// 목록 이름 옆 표시: 다시 전화 알림이 걸려 있으면 ⏰, 아니면 마지막 기록
+function recMark(c){ if(pendingRemind(c)) return '⏰'; const r = recsOf(c).slice(-1)[0]; return r ? (RI[r.type]||'') : ''; }
+// 연락처 이름: 🏢D/이름/85/불로동/이관 (맨 앞 회사 이모지, 없는 칸은 건너뜀). 메모: 유입월, 밸류업은 구분까지
+// 연락처 이름 양식 (1.5.0, 2026-10-11 지시): 자동 = 🏢D/이름/85/불로동/이관 (예전 방식)
+// 수동 = 여섯 칸마다 없음·이모지·등급(A~E)·이름·생년·주소(지역)·이관/밸류업 중 하나를 고른다. 칸 사이는 '/', 이모지는 앞뒤에 '/' 없이 붙인다
+// 1.5.1: A~E는 '등급' 하나로 묶고, 등급을 고르면 옆에서 A~E를 고른다 (칸 값은 그대로 'A'~'E'로 저장)
+const CF_OPTS = [['none','없음'],['emoji','이모지🏢'],['grade','등급'],['name','이름'],['year','생년(88)'],['region','주소'],['kind','이관/밸류업']];   // 1.5.2 가로 나열이라 짧게
+const GRADES = ['A','B','C','D','E'];
+const CF_AUTO = ['emoji','D','name','year','region','kind'];
+let contactFmt = (()=>{ const f = load('contactFmt', {}); return {mode: f.mode==='manual' ? 'manual' : 'auto', slots: Array.isArray(f.slots) && f.slots.length===6 ? f.slots : [...CF_AUTO]}; })();
+function cfPart(k, c){
+  if(k==='emoji') return '🏢';
+  if(/^[A-E]$/.test(k)) return k;
+  if(k==='name') return c.name || '';
+  if(k==='year') return c.year ? String(c.year).slice(2) : '';
+  if(k==='region') return c.region || '';
+  if(k==='kind') return c.kind==='tr' ? '이관' : '밸류업';
+  return '';
+}
+function buildContactName(slots, c){
+  let s = '', glue = true;   // glue: 바로 앞이 이모지(또는 맨 앞)라 '/' 없이 붙인다
+  for(const k of slots){ const v = cfPart(k, c); if(!v) continue; const em = k==='emoji'; s += (!glue && !em ? '/' : '') + v; glue = em; }
+  return s || c.name;
+}
+function contactName(c){ return buildContactName(contactFmt.mode==='manual' ? contactFmt.slots : CF_AUTO, c); }
+// 양식 고르는 화면: 자동 / 수동(여섯 칸을 가로로 나열), 아래에 미리보기
+// 미리보기는 늘 같은 예시 (1.5.2, 2026-10-11 지정: 김주성 · 88 · 논현동 · 이관)
+const CF_SAMPLE = {name:'김주성', year:'1988', region:'논현동', kind:'tr'};
+function contactFmtForm(i){
+  const c = CF_SAMPLE;
+  curRoute = ['contactFmt', customers[i] ? customers[i].phone : ''];
+  setTitle('연락처 이름 양식');
+  window._cf = {mode:contactFmt.mode, slots:[...contactFmt.slots]}; window._cfC = c;
+  drawCf();
+}
+function drawCf(){
+  const f = window._cf, auto = f.mode==='auto';
+  $v().innerHTML = `
+    <div class="row" style="margin-top:0">
+      <button class="btn seg${auto?' on':''}" onclick="window._cf.mode='auto';drawCf()">자동</button>
+      <button class="btn seg${auto?'':' on'}" onclick="window._cf.mode='manual';drawCf()">수동</button></div>
+    ${auto ? `<p class="note">지금 방식: 이모지 🏢 · 등급 D · 이름 · 생년 · 주소(지역) · 이관/밸류업</p>`
+      : `<label>칸 고르기 <span class="meta" style="font-weight:400">(① → ⑥ 순서로 이어짐)</span></label>
+         <div class="cfstrip">${f.slots.map((k,n)=>{ const g = GRADES.includes(k), opt = CF_OPTS.find(([v])=>v===(g?'grade':k));
+          return `<div class="cfslot"><span>${'①②③④⑤⑥'[n]}</span>
+          <button class="${k==='none'?'off':''}" onclick="cfPick(${n})">${esc(opt ? opt[1] : '없음')}</button>
+          ${g ? `<button class="grade" onclick="cfGrade(${n})">${k}</button>` : ''}</div>`; }).join('')}</div>
+         <p class="note" style="margin-top:4px">칸을 누르면 넣을 것을 고릅니다. 등급은 아래 글자를 눌러 A~E를 고릅니다.</p>`}
+    <div class="card" style="margin-top:14px"><div class="meta" style="margin-bottom:6px">미리보기 (예: 김주성 · 88년생 · 논현동 · 이관)</div><div id="cf_prev" style="font-size:18px;font-weight:700"></div></div>
+    <button class="btn primary" style="width:100%" onclick="saveCf()">저장</button>
+    <p class="note">칸 사이는 '/'로 나뉘고, 이모지는 '/' 없이 바로 붙습니다. 빈 칸(생년·지역이 없는 고객 등)은 건너뜁니다.</p>`;
+  cfPreview();
+}
+// 칸 누르기 → 넣을 것 고르는 창. '등급'을 고르면 이어서 A~E를 고른다 (지금 값은 진하게)
+function cfPick(n){
+  const cur = window._cf.slots[n], key = GRADES.includes(cur) ? 'grade' : cur;
+  ask(`${'①②③④⑤⑥'[n]} 칸에 넣을 것`, CF_OPTS.map(([v,t])=>[t, ()=> v==='grade' ? cfGrade(n) : cfSet(n, v), v===key]).concat([['취소']]));
+}
+function cfGrade(n){
+  const cur = window._cf.slots[n];
+  ask(`${'①②③④⑤⑥'[n]} 칸 등급`, GRADES.map(x=>[x, ()=>cfSet(n, x), x===cur]).concat([['취소']]));
+}
+function cfSet(n, v){ window._cf.slots[n] = v; drawCf(); }
+function cfPreview(){ const f = window._cf; document.getElementById('cf_prev').textContent = buildContactName(f.mode==='manual' ? f.slots : CF_AUTO, window._cfC); }
+function saveCf(){ contactFmt = {mode:window._cf.mode, slots:[...window._cf.slots]}; save('contactFmt', contactFmt); toast('연락처 이름 양식을 저장했습니다'); goBack(); }
+function contactNotes(c){
+  const x = String(monthOf(c)).match(/^(\d{4})-(\d{1,2})$/);
+  return [x?`유입월: ${x[1]}년 ${+x[2]}월`:'', c.kind==='vu' && groupOf(c)?`구분: ${groupOf(c)}`:''].filter(Boolean).join('\n');
+}
+function saveContact(i){
+  const c = customers[i];
+  const ok = window.Android ? Android.openContact(contactName(c), fmtPhone(c.phone), contactNotes(c)) : (toast(contactName(c)+' · '+contactNotes(c).replace(/\n/g,' · ')), true);
+  if(!ok) toast('연락처 앱을 열지 못했습니다');
+}
+function callTo(i){
+  const c = customers[i];
+  const ok = window.Android ? Android.openDial(c.phone) : (location.href='tel:'+c.phone, true);
+  if(!ok) toast('전화 앱을 열지 못했습니다');
+}
+function now(){ const d=new Date(), z=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; }
+function sendTo(i){
+  const c = customers[i];
+  const ok = window.Android ? Android.openSms(c.phone, letterFor(c)) : (location.href='sms:'+c.phone, true);
+  if(!ok){ toast('문자 앱을 열지 못했습니다'); return; }
+  c.sent = now(); save('customers', customers);
+  const log = load('sentLog', []); log.push({at:c.sent, kind:c.kind, name:c.name, phone:c.phone}); save('sentLog', log.slice(-2000));
+  setTimeout(()=>detail(i), 300);   // 보낸 날 표시
+}
+function removeCustomer(i){
+  ask(`${customers[i].name} 고객을 명단에서 뺄까요?`, [['빼기',()=>{ offRemind(i, true); customers.splice(i,1); save('customers',customers); window._lastIdx = null; stack.pop(); goBack(); toast('명단에서 뺐습니다'); },true],['취소']]);
+}
+
+// ---------- 문자 문구 (1.4.0): 이관고객 / 밸류업(기본 + 분류별) → 호칭 · 머리말 · 본문 · 마무리 (+ 1.7.0 약속 칸) ----------
+function tplTitle(key){ return key==='tr' ? '이관고객 문자' : key==='appt' ? '약속 문자' : key==='vu' ? '밸류업 기본 문자' : '밸류업 · ' + key.slice(3); }
+const firstLine = key => composeText(key, '김주성').split('\n')[0];
+function editLetters(){
+  curRoute = ['letters'];
+  setTitle('문자 문구');
+  $v().innerHTML = `
+    <p class="note" style="margin-top:0">고칠 문자를 고르세요.</p>
+    <div class="kinds">
+      <button class="kind tr" onclick="show(()=>editTpl('tr'))">이관고객</button>
+      <button class="kind vu" onclick="show(vuTpls)">밸류업고객<small>기본 문구 + 분류별</small></button>
+    </div>
+    <p class="note">문구마다 [인사말] / [약속안내] 탭이 있습니다. 날짜·시간·장소는 약속안내 탭에서 정하고, [약속] 화면에서 고객마다 다시 고칠 수 있습니다.</p>`;
+}
+// 밸류업 분류: 정해 둔 다섯 가지 + 명단에 있는 분류 + 문구를 따로 정해 둔 분류
+function vuGroups(){
+  return [...new Set([...VU_GROUPS, ...customers.filter(c=>c.kind==='vu').map(groupOf).filter(Boolean),
+    ...Object.keys(letters.tpl).filter(k=>k.startsWith('vu:')).map(k=>k.slice(3))])];
+}
+function vuTpls(){
+  curRoute = ['vutpls'];
+  setTitle('밸류업 문자');
+  window._vuGroups = vuGroups();
+  $v().innerHTML = `
+    <ul class="names">
+      <li onclick="show(()=>editTpl('vu'))"><span class="nm">기본 문구<span class="sub">따로 정하지 않은 분류는 이 문구를 씁니다</span></span><span class="tail">›</span></li>
+      ${window._vuGroups.map((g,gi)=>`<li onclick="show(()=>editTpl('vu:'+window._vuGroups[${gi}]))"><span class="nm">${esc(g)}<span class="sub">${letters.tpl['vu:'+g]?'따로 정한 문구':'기본 문구 사용'}</span></span><span class="tail">›</span></li>`).join('')}
+    </ul>
+    <p class="note">분류는 명단 엑셀의 '분류' 칸(캠페인)입니다.</p>`;
+}
+function editTpl(key){
+  curRoute = ['tpl', key];
+  setTitle(tplTitle(key));
+  const t = tplOf(key), own = !!letters.tpl[key], grp = key.startsWith('vu:');
+  window._tplKey = key;
+  $v().innerHTML = `
+    ${grp ? `<p class="note" style="margin-top:0">${own ? '이 분류만 따로 정한 문구입니다.' : '지금은 밸류업 기본 문구를 씁니다. 고쳐서 저장하면 이 분류만 따로 씁니다.'}</p>` : ''}
+    <label>호칭</label>
+    <div class="namebar"><span class="lockname">🔒 고객 이름</span>${HONS.map(h=>`<button class="btn seg" id="hon_${h}" onclick="pickHon('${h}')">${h}</button>`).join('')}</div>
+    <!-- 1.8.0: 인사말 / 약속안내 탭 (호칭은 두 탭이 같이 씀). 탭을 바꿔도 칸은 그대로 두고 숨기기만 해서 한 번에 저장 -->
+    <div class="tabs"><button id="tab_g" onclick="tplTab('g')">인사말</button><button id="tab_a" onclick="tplTab('a')">약속안내</button></div>
+    <div id="pane_g">
+      <p class="note" style="margin:8px 0 0">문자는 <b>고객 이름 + 호칭, 머리말</b> / 본문 / 마무리 순서로 이어집니다.</p>
+      <!-- 1.6.0: 머리말·본문·마무리 제목은 없애고 빈 칸 안의 흐린 안내 글(글을 쓰면 사라짐)로 알려 준다 -->
+      <textarea id="t_head" class="tbox" style="min-height:80px" placeholder="머리말&#10;예: 안녕하세요. 김주성입니다." oninput="tplPreview()">${esc(t.head)}</textarea>
+      <textarea id="t_body" class="tbox" placeholder="본문&#10;예: 전하고 싶은 내용" oninput="tplPreview()">${esc(t.body)}</textarea>
+      <textarea id="t_tail" class="tbox" style="min-height:80px" placeholder="마무리&#10;예: 감사합니다." oninput="tplPreview()">${esc(t.tail)}</textarea>
+      <div class="card" style="margin-top:14px"><div class="meta" style="margin-bottom:8px">인사말 미리보기 (예: 김주성)</div><div class="preview" id="t_prev"></div><div class="count" id="t_cnt"></div></div>
+    </div>
+    <div id="pane_a" class="hidden">
+      <p class="note" style="margin:8px 0 0">고객 화면 [약속]에서 쓰는 문자입니다. 호칭·머리말·마무리는 인사말 탭과 같고, 아래 칸이 본문 자리에 들어갑니다.</p>
+      <div class="chips" style="margin-top:10px">${['{날짜}','{시간}','{장소}','{링크}'].map(x=>`<button onclick="insAppt('${x}')">${x}</button>`).join('')}</div>
+      <textarea id="t_appt" class="tbox" style="min-height:110px" placeholder="약속 안내&#10;예: {날짜} {시간}에 {장소}에서 뵙겠습니다." oninput="tplPreview()">${esc(t.appt)}</textarea>
+      <p class="note" style="margin:6px 0 0">{날짜} {시간} {장소} {링크} 자리에 약속 내용이 들어갑니다. 장소명이 없으면 '{장소}에서'는 빠지고, 링크는 {링크}가 없으면 맨 아래에 붙습니다.</p>
+      <div class="card" style="margin-top:10px"><div class="meta" style="margin-bottom:8px">약속안내 미리보기 (예: 내일 오후 2시 · 역삼역 스타벅스)</div><div class="preview" id="t_aprev"></div><div class="count" id="t_acnt"></div></div>
+    </div>
+    <button class="btn primary" style="width:100%" onclick="saveTpl()">저장</button>
+    ${grp && own ? `<button class="btn" style="width:100%;margin-top:10px" onclick="resetTpl()">기본 문구로 되돌리기</button>` : ''}`;
+  window._hon = t.hon;
+  pickHon(t.hon);
+  tplTab(window._tplTabKey===key && window._tplTab || 'g');   // 같은 문구로 돌아오면 보던 탭 그대로
+}
+function tplTab(x){
+  window._tplTab = x; window._tplTabKey = window._tplKey;
+  ['g','a'].forEach(k=>{ document.getElementById('tab_'+k).classList.toggle('on', k===x); document.getElementById('pane_'+k).classList.toggle('hidden', k!==x); });
+}
+function readTpl(){ const g = id => document.getElementById(id).value; return {hon:window._hon, head:g('t_head').trim(), body:g('t_body'), tail:g('t_tail'), appt:g('t_appt')}; }
+// {날짜} 등 단추: 약속 칸의 커서 자리에 넣는다
+function insAppt(x){
+  const a = document.getElementById('t_appt'), s = a.selectionStart ?? a.value.length, e = a.selectionEnd ?? s;
+  a.value = a.value.slice(0, s) + x + a.value.slice(e); a.focus(); a.selectionStart = a.selectionEnd = s + x.length; tplPreview();
+}
+function pickHon(h){
+  window._hon = HONS.includes(h) ? h : '님';
+  HONS.forEach(x=>document.getElementById('hon_'+x).classList.toggle('on', x===window._hon));
+  tplPreview();
+}
+function tplPreview(){
+  const t = readTpl(), s = composeTpl(t, '김주성');
+  const d = new Date(Date.now()+86400000);
+  const a = apptFill(composeTpl({...t, body:t.appt}, '김주성'), {date:`${d.getFullYear()}-${z2(d.getMonth()+1)}-${z2(d.getDate())}`, time:'14:00', place:'역삼역 스타벅스', link:''});
+  document.getElementById('t_aprev').textContent = a;
+  document.getElementById('t_acnt').textContent = a.length + '자' + (a.length>45 ? ' · 길어서 문자 앱이 장문(LMS)으로 보냅니다' : '');
+  document.getElementById('t_prev').textContent = s;
+  document.getElementById('t_cnt').textContent = s.length + '자' + (s.length>45 ? ' · 길어서 문자 앱이 장문(LMS)으로 보냅니다' : '');
+}
+function saveTpl(){ letters.tpl[window._tplKey] = readTpl(); save('letters', letters); toast('문자 문구를 저장했습니다'); goBack(); }
+function resetTpl(){
+  ask('이 분류의 문구를 지우고 밸류업 기본 문구를 쓸까요?', [['되돌리기',()=>{ delete letters.tpl[window._tplKey]; save('letters', letters); toast('기본 문구로 되돌렸습니다'); goBack(); },true],['취소']]);
+}
+
+// ---------- 명단 불러오기 (엑셀·CSV: 성격·이름·연락처) ----------
+// ---------- 고객 직접 추가: 구분 · 월 · 분류 · 이름 · 생년 · 지역 · 연락처 ----------
+function thisMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function addForm(kind, month){
+  curRoute = ['add', kind, month];
+  setTitle('고객 추가');
+  kind = kind || 'tr'; month = month || thisMonth();
+  const groups = [...new Set(customers.map(groupOf).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko'));
+  $v().innerHTML = `
+    <label>구분</label>
+    <div class="row" style="margin-top:0">
+      <button class="btn seg" id="k_tr" onclick="pickKind('tr')">이관</button>
+      <button class="btn seg" id="k_vu" onclick="pickKind('vu')">밸류업</button></div>
+    <label>월 (유입된 달)</label><input class="search" id="f_month" type="month" value="${esc(month)}">
+    <label id="l_group">분류 <span class="meta" style="font-weight:400">(밸류업만: 쇼핑엔티·더열심히 등)</span></label>
+    <input class="search" id="f_group" list="groups" placeholder="고르거나 적기"><datalist id="groups">${groups.map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
+    <label>이름</label><input class="search" id="f_name" placeholder="김주성">
+    <label>생년</label><input class="search" id="f_year" inputmode="numeric" maxlength="4" placeholder="1985 또는 85">
+    <label>지역</label><input class="search" id="f_region" placeholder="역삼동 (주소 전체를 적어도 동·구·시로 줄여 저장)">
+    <label>연락처</label><input class="search" id="f_phone" type="tel" inputmode="tel" placeholder="010-1234-5678">
+    <button class="btn primary" style="width:100%;margin-top:16px" onclick="saveNew()">저장</button>`;
+  pickKind(kind);
+}
+// 분류는 밸류업만 쓴다: 이관을 고르면 분류 칸을 비우고 막는다
+function pickKind(k){
+  window._fKind = k; ['tr','vu'].forEach(x=>document.getElementById('k_'+x).classList.toggle('on', x===k));
+  const g = document.getElementById('f_group'), off = k==='tr';
+  g.disabled = off; if(off) g.value = '';
+  g.placeholder = off ? '이관고객은 분류가 없습니다' : '고르거나 적기';
+  document.getElementById('l_group').classList.toggle('off', off);
+}
+function saveNew(){
+  const val = id => document.getElementById(id).value.trim();
+  const kind = window._fKind, name = val('f_name'), phone = normPhone(val('f_phone'));
+  if(!name){ toast('이름을 적어 주세요'); return; }
+  if(phone.length<10){ toast('연락처를 확인해 주세요'); return; }
+  const r = val('f_region');
+  const c = {kind, name, phone, month: normMonth(val('f_month')), group: val('f_group'), year: birthYear(val('f_year')), region: shortRegion(r) || r, sent:''};
+  const put = i => { save('customers', customers); stack.pop(); show(()=>detail(i)); toast('고객을 저장했습니다'); };
+  const old = customers.findIndex(x=>x.phone===phone);
+  if(old>=0) ask(`같은 번호로 ${customers[old].name} 고객이 이미 있습니다. 새로 적은 내용으로 바꿀까요?`,
+    [['바꾸기',()=>{ c.sent = customers[old].sent; customers[old] = c; put(old); },true],['취소']]);
+  else { customers.push(c); put(customers.length-1); }
+}
+
+function importList(){
+  if(!window.Android){ toast('휴대폰 앱에서만 불러올 수 있습니다'); return; }
+  if(customers.length) ask('지금 명단에 더할까요, 지우고 새로 넣을까요?', [['더하기',()=>{ window._replace=false; Android.pickFile(); },true],['새로 넣기',()=>{ window._replace=true; Android.pickFile(); }],['취소']]);
+  else { window._replace=false; Android.pickFile(); }
+}
+function kindOf(s){ s=String(s||''); if(/이관/.test(s)) return 'tr'; if(/밸류|벨류|value|퍼미션/i.test(s)) return 'vu'; return ''; }
+function normPhone(s){ let d=String(s||'').replace(/\D/g,''); if(d.startsWith('82')) d='0'+d.slice(2); if(d.length===10 && d.startsWith('10')) d='0'+d; return d; }
+window.onImportError = e => toast('파일을 읽지 못했습니다: '+e);
+window.onImported = function(rows){
+  rows = (rows||[]).filter(r=>r && r.some(x=>String(x).trim()));
+  if(!rows.length){ toast('파일에 내용이 없습니다'); return; }
+  // 머리글 찾기: 성격/구분, 이름/고객명/성명, 연락처/휴대폰/전화/핸드폰 (없으면 앞 세 칸 순서대로)
+  const h = rows[0].map(x=>String(x).replace(/\s/g,''));
+  const find = re => h.findIndex(x=>re.test(x));
+  // 분류(이관은 대상월, 밸류업은 캠페인) 칸은 있으면 쓴다: 분류/대상월/캠페인/그룹
+  let ck=find(/성격|구분|종류/), cn=find(/이름|고객명|성명/), cp=find(/연락처|휴대폰|핸드폰|전화|번호/);
+  if(ck<0) ck=find(/분류/);
+  // 월(이관 대상월·밸류업 유입월)과 분류(밸류업 캠페인) 칸은 있으면 쓴다
+  let cm=find(/^(월|유입월|대상월|배분월|월별|유입)$/);
+  let cg=h.findIndex((x,i)=>i!==ck && i!==cm && /분류|캠페인|그룹/.test(x));
+  let cy=find(/생년|출생|생일/), cr=find(/지역|주소|사는곳/);   // 있으면 쓴다
+  let body = rows;
+  if(cn>=0 && cp>=0) body = rows.slice(1); else { ck=0; cn=1; cp=2; cg=-1; cm=-1; cy=-1; cr=-1; }
+  if(window._replace) customers = [];
+  const byPhone = new Map(customers.map((c,i)=>[c.phone,i]));
+  let added=0, updated=0, skipped=0;
+  for(const r of body){
+    const kind = kindOf(r[ck]), name = String(r[cn]||'').trim(), phone = normPhone(r[cp]);
+    const group = cg>=0 ? String(r[cg]||'').trim() : '', month = cm>=0 ? normMonth(r[cm]) : '';
+    const year = cy>=0 ? birthYear(r[cy]) : '', region = cr>=0 ? shortRegion(r[cr]) : '';
+    if(!kind || !name || phone.length<10){ skipped++; continue; }
+    if(byPhone.has(phone)){ const c=customers[byPhone.get(phone)]; c.kind=kind; c.name=name; if(cg>=0) c.group=group; if(month) c.month=month; if(year) c.year=year; if(region) c.region=region; updated++; }
+    else { byPhone.set(phone, customers.length); customers.push({kind,name,phone,month,group,year,region,sent:''}); added++; }
+  }
+  save('customers', customers); lastImport = now(); save('lastImport', lastImport);
+  show(home, false); stack.length=0; stack.push(home); saveNav();
+  toast(`새 고객 ${added}명 · 바뀐 고객 ${updated}명`+(skipped?` · 건너뛴 줄 ${skipped}`:''));
+};
+
+if(!restoreNav()) show(home);   // 휴대폰이 앱을 정리했다가 다시 열린 때는 보던 화면으로
+checkAfterCal();
+</script>
+</body>
+</html>

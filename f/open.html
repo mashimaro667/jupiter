@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>주피터</title>
+<style>
+:root{--bg:#f4f5f8;--text:#1d2230;--sub:#6b7280;--accent:#3b4a8c;color-scheme:light}
+@media (prefers-color-scheme: dark){:root{--bg:#111318;--text:#eceef4;--sub:#9aa1ae;--accent:#5466c4;color-scheme:dark}}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;padding:32px 16px;text-align:center}
+a.btn{display:block;max-width:420px;margin:24px auto 0;padding:16px;border-radius:12px;background:var(--accent);color:#fff;font-size:18px;font-weight:700;text-decoration:none}
+p{color:var(--sub);line-height:1.6}
+</style>
+</head>
+<body>
+<!-- 주피터 웹판 도우미: 캘린더(.ics)·연락처(.vcf) 파일을 사파리에서 연다. 내용은 주소 # 뒤에만 있고 서버로 가지 않는다 -->
+<h2 id="t">여는 중…</h2>
+<a class="btn" id="go" href="#">열기</a>
+<p id="n">캘린더·연락처 화면이 뜨지 않으면 [열기]를 누르세요.<br>저장한 뒤 [완료]를 누르면 주피터로 돌아갑니다.</p>
+<script>
+(function(){
+  try{
+    const s = location.hash.slice(1).replace(/-/g,'+').replace(/_/g,'/');
+    const b = atob(s), u = new Uint8Array(b.length);
+    for(let i=0;i<b.length;i++) u[i] = b.charCodeAt(i);
+    const o = JSON.parse(new TextDecoder().decode(u));
+    document.getElementById('t').textContent = o.t==='text/calendar' ? '캘린더 일정' : '연락처';
+    const url = URL.createObjectURL(new Blob([o.d], {type:o.t}));
+    const a = document.getElementById('go');
+    a.href = url;
+    if(!/iP(hone|ad|od)/.test(navigator.userAgent) && !(navigator.platform==='MacIntel' && navigator.maxTouchPoints>1)) a.download = o.n;   // 아이폰 밖에서는 파일로 받기
+    setTimeout(()=>{ location.href = url; }, 150);
+  }catch(e){
+    document.getElementById('t').textContent = '열 수 없는 주소입니다';
+    document.getElementById('go').style.display = 'none';
+  }
+})();
+</script>
+</body>
+</html>
