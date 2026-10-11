@@ -14,7 +14,7 @@
 <meta name="theme-color" content="#0b1026">
 <meta name="format-detection" content="telephone=no">
 <meta name="robots" content="noindex, nofollow">
-<script src="web.js?v=1.13.0"></script>
+<script src="web.js?v=1.14.0"></script>
 <style>
 /* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
 :root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
@@ -142,10 +142,10 @@ const KINDS = {tr:'이관고객', vu:'밸류업'};
 // - 문구는 이관고객 / 밸류업(기본 + 분류별: 쇼핑엔티 등)으로 따로 둔다 (1.6.0: 약속 문자는 약속 화면에서 고객마다 고침). 따로 정하지 않은 밸류업 분류는 밸류업 기본 문구를 쓴다
 // - 저장: letters = {v:3, tpl:{tr, vu, appt, 'vu:쇼핑엔티', ...}}, 문구 하나 = {hon, head, body, tail}
 const HONS = ['님','고객님'];
-// 밸류업 그룹 (1.13.0, 2026-10-11 지시): 명단 엑셀의 성격 칸이 '그룹1'~'그룹10', 오른쪽 표(그룹 / 이름)에 그룹마다 이름을 적는다
-// groupNames = {1:'한신지점', 2:'쇼핑엔티', …} — 명단을 불러올 때 표가 있으면 통째로 바뀐다 (이름 없는 그룹은 문구 칸이 생기지 않음)
-// 문구는 그룹 번호(vu:g1)로 저장해서 이름을 바꿔도 남는다. 예전 명단(성격 밸류업 + 분류 이름)도 그대로 읽는다
-let groupNames = load('groups', {});
+// 밸류업 분류 (1.14.0, 2026-10-11): 명단 엑셀 '분류' 칸의 이름 그대로. 고정 목록 없이 명단에 있는 이름·문구를 써 둔 이름으로 칸이 생긴다
+// 1.13.0의 그룹 번호(성격 그룹1~10 + 오른쪽 이름표)는 되돌림 — 남은 그룹 번호 문구·고객은 undoGroups()가 이름으로 바꾸고,
+// 1.13.0 모양 엑셀을 불러와도 그룹 번호 대신 이름표의 이름(없으면 '그룹N')을 분류로 쓴다
+let groupNames = load('groups', {});   // 1.13.0 이름표 (되돌릴 때만 씀)
 const GROUP_MAX = 10;
 const DEFAULT_TPL = {
   tr:  {hon:'님', head:'안녕하세요.', body:'(이관고객님께 드릴 내용을 [문자 문구]에서 적어 주세요)', tail:'', appt:'{날짜} {시간}에 {장소}에서 뵙겠습니다.'},
@@ -267,7 +267,7 @@ function home(){
     </div>
     <button class="btn setbtn" onclick="show(settings)">⚙ 설정 <small>문자 문구 · 연락처 양식 · 화면 스타일</small></button>
     <p class="note">${lastImport ? '마지막으로 불러온 때: '+esc(lastImport)+'<br>' : ''}
-    명단 엑셀은 <b>성격(이관 / 그룹1~그룹10) · 월 · 이름 · 생년 · 지역 · 연락처</b> 칸으로 만들고, 오른쪽 표에 그룹마다 이름(예: 그룹1 한신지점)을 적어 구글 드라이브에 올린 뒤, [명단 불러오기]에서 고르세요. [⬇ 양식]으로 받은 엑셀에 적으면 됩니다.</p>
+    명단 엑셀은 <b>성격(이관/밸류업) · 월 · 분류 · 이름 · 생년 · 지역 · 연락처</b> 칸으로 만들어 (월: 2026-09, 분류: 밸류업 캠페인 이름 — 이름대로 문구 칸이 생김) 구글 드라이브에 올린 뒤, [명단 불러오기]에서 고르세요. [⬇ 양식]으로 받은 엑셀에 적으면 됩니다.</p>
     ${window.webExtra ? webExtra('home') : ''}`;   // 웹판(아이폰)에서만: 홈 화면 추가 안내 (web.js)
 }
 
@@ -318,8 +318,6 @@ applyTheme();
 const YM = /^\d{4}-\d{1,2}$/;
 function monthOf(c){ return c.month || (YM.test(c.group||'') ? c.group : ''); }
 function groupOf(c){ if(c.gno) return groupNames[c.gno] || '그룹'+c.gno; return YM.test(c.group||'') ? '' : (c.group||''); }
-// 그룹 번호: 새 명단은 c.gno, 예전 명단은 분류 이름이 그룹 이름과 같으면 그 번호
-function gnoOf(c){ if(c.gno) return c.gno; const g = c.kind==='vu' ? groupOf(c) : ''; const k = g ? Object.keys(groupNames).find(n=>groupNames[n]===g) : null; return k ? +k : 0; }
 function monthLabel(m){ const x=String(m||'').match(/^(\d{4})-(\d{1,2})$/); if(!x) return '월 모름'; return (+x[1]===new Date().getFullYear()?'':x[1]+'년 ')+(+x[2])+'월'; }
 function monthKey(m){ const x=String(m||'').match(/^(\d{4})-(\d{1,2})$/); return x ? x[1]+x[2].padStart(2,'0') : '0'; }
 function normMonth(s){ s=String(s||'').trim(); const x=s.match(/(20\d{2})\D{0,3}(\d{1,2})/); return x && +x[2]>=1 && +x[2]<=12 ? x[1]+'-'+x[2].padStart(2,'0') : ''; }
@@ -407,7 +405,7 @@ function rowsHtml(rows){
 
 // ---------- 고객 화면: 문자 미리보기 + [문자 보내기] ----------
 // 고객에게 맞는 문구: 밸류업은 분류(쇼핑엔티 등)별 → 없으면 밸류업 기본
-function keyFor(c){ if(c.kind!=='vu') return c.kind; const n = gnoOf(c); if(n) return 'vu:g'+n; const g = groupOf(c); return g ? 'vu:'+g : 'vu'; }
+function keyFor(c){ const g = c.kind==='vu' ? groupOf(c) : ''; return g ? 'vu:'+g : c.kind; }
 function letterFor(c){ return composeText(keyFor(c), c.name); }
 function fmtPhone(p){ return p.length===11 ? p.replace(/(\d{3})(\d{4})(\d{4})/,'$1-$2-$3') : p.length===10 ? p.replace(/(\d{3})(\d{3})(\d{4})/,'$1-$2-$3') : p; }
 function detail(i){
@@ -687,11 +685,7 @@ function removeCustomer(i){
 }
 
 // ---------- 문자 문구 (1.4.0): 이관고객 / 밸류업(기본 + 분류별) → 호칭 · 머리말 · 본문 · 마무리 (+ 1.7.0 약속 칸) ----------
-function tplTitle(key){
-  const g = /^vu:g(\d+)$/.exec(key);
-  if(g) return '그룹' + g[1] + (groupNames[g[1]] ? ' · ' + groupNames[g[1]] : '') + ' 문자';
-  return key==='tr' ? '이관고객 문자' : key==='appt' ? '약속 문자' : key==='vu' ? '밸류업 기본 문자' : '밸류업 · ' + key.slice(3);
-}
+function tplTitle(key){ return key==='tr' ? '이관고객 문자' : key==='appt' ? '약속 문자' : key==='vu' ? '밸류업 기본 문자' : '밸류업 · ' + key.slice(3); }
 const firstLine = key => composeText(key, '김주성').split('\n')[0];
 function editLetters(){
   curRoute = ['letters'];
@@ -704,16 +698,11 @@ function editLetters(){
     </div>
     <p class="note">문구마다 [인사말] / [약속안내] 탭이 있습니다. 날짜·시간·장소는 약속안내 탭에서 정하고, [약속] 화면에서 고객마다 다시 고칠 수 있습니다.</p>`;
 }
-// 밸류업 문구 칸 (1.13.0): 이름을 적은 그룹 + 명단에 고객이 있는 그룹(1~10). 예전 명단의 분류 이름(그룹과 이어지지 않은 것)은 뒤에
+// 밸류업 문구 칸 (1.14.0): 명단에 있는 분류 이름 + 문구를 따로 써 둔 이름 (가나다순). 고정 목록 없음
 function vuGroups(){
-  const out = [];
-  for(let n=1; n<=GROUP_MAX; n++){
-    const nm = groupNames[n], has = customers.some(c=>c.kind==='vu' && gnoOf(c)===n);
-    if(nm || has) out.push({key:'vu:g'+n, label:'그룹'+n, name:nm || ''});
-  }
-  const old = [...new Set(customers.filter(c=>c.kind==='vu' && !gnoOf(c)).map(groupOf).filter(Boolean))];
-  old.forEach(g=>out.push({key:'vu:'+g, label:g, name:''}));
-  return out;
+  const names = [...new Set([...customers.filter(c=>c.kind==='vu').map(groupOf).filter(Boolean),
+    ...Object.keys(letters.tpl).filter(k=>k.startsWith('vu:')).map(k=>k.slice(3))])].sort((a,b)=>a.localeCompare(b,'ko'));
+  return names.map(g=>({key:'vu:'+g, label:g}));
 }
 function vuTpls(){
   curRoute = ['vutpls'];
@@ -722,19 +711,22 @@ function vuTpls(){
   $v().innerHTML = `
     <ul class="names">
       <li onclick="show(()=>editTpl('vu'))"><span class="nm">기본 문구<span class="sub">따로 정하지 않은 그룹은 이 문구를 씁니다</span></span><span class="tail">›</span></li>
-      ${window._vuGroups.map((g,gi)=>`<li onclick="show(()=>editTpl(window._vuGroups[${gi}].key))"><span class="nm">${esc(g.label)}${g.name?' · '+esc(g.name):''}<span class="sub">${letters.tpl[g.key]?'따로 정한 문구':'기본 문구 사용'}</span></span><span class="tail">›</span></li>`).join('')}
+      ${window._vuGroups.map((g,gi)=>`<li onclick="show(()=>editTpl(window._vuGroups[${gi}].key))"><span class="nm">${esc(g.label)}<span class="sub">${letters.tpl[g.key]?'따로 정한 문구':'기본 문구 사용'}</span></span><span class="tail">›</span></li>`).join('')}
     </ul>
-    <p class="note">그룹은 명단 엑셀의 성격 칸(그룹1~그룹10)이고, 이름은 엑셀 오른쪽 표(그룹 · 이름)에서 정합니다. 이름을 적은 그룹만 여기에 생기고, 지우면 없어집니다 (써 둔 문구는 그룹 번호에 남아 있다가 다시 이름을 적으면 돌아옵니다).</p>`;
+    <p class="note">분류는 명단 엑셀의 '분류' 칸 이름입니다. 명단에 새 분류 이름이 있으면 여기에 칸이 저절로 생깁니다.</p>`;
 }
-// 예전에 분류 이름으로 써 둔 문구·고객을 그룹 번호로 옮긴다 (그룹 이름표를 처음 불러왔을 때)
-function migrateGroups(){
+// 1.13.0 그룹 번호 되돌리기 (1.14.0): 그룹 번호(vu:g1)로 옮겨 둔 문구는 그 그룹 이름(vu:한신지점)으로, 그룹 번호 고객은 분류 이름으로
+function undoGroups(){
   let ch = false;
-  for(const n of Object.keys(groupNames)){
-    const nm = groupNames[n];
-    if(nm && letters.tpl['vu:'+nm] && !letters.tpl['vu:g'+n]){ letters.tpl['vu:g'+n] = letters.tpl['vu:'+nm]; delete letters.tpl['vu:'+nm]; ch = true; }
+  for(const k of Object.keys(letters.tpl)){
+    const m = /^vu:g(\d+)$/.exec(k); if(!m) continue;
+    const nm = groupNames[m[1]] || '그룹'+m[1];
+    if(!letters.tpl['vu:'+nm]) letters.tpl['vu:'+nm] = letters.tpl[k];
+    delete letters.tpl[k]; ch = true;
   }
-  customers.forEach(c=>{ if(c.kind==='vu' && !c.gno){ const n = gnoOf(c); if(n){ c.gno = n; c.group = ''; ch = true; } } });
+  customers.forEach(c=>{ if(c.gno){ c.group = groupNames[c.gno] || '그룹'+c.gno; delete c.gno; ch = true; } });
   if(ch){ save('letters', letters); save('customers', customers); }
+  try{ localStorage.removeItem('groups'); }catch(e){}
 }
 function editTpl(key){
   curRoute = ['tpl', key];
@@ -814,8 +806,8 @@ function addForm(kind, month){
       <button class="btn seg" id="k_tr" onclick="pickKind('tr')">이관</button>
       <button class="btn seg" id="k_vu" onclick="pickKind('vu')">밸류업</button></div>
     <label>월 (유입된 달)</label><input class="search" id="f_month" type="month" value="${esc(month)}">
-    <label id="l_group">그룹 <span class="meta" style="font-weight:400">(밸류업만)</span></label>
-    <select class="search" id="f_group">${Array.from({length:GROUP_MAX},(_,i)=>i+1).map(n=>`<option value="${n}">그룹${n}${groupNames[n]?' · '+esc(groupNames[n]):''}</option>`).join('')}</select>
+    <label id="l_group">분류 <span class="meta" style="font-weight:400">(밸류업만: 있는 분류를 고르거나 새로 적기)</span></label>
+    <input class="search" id="f_group" list="groups" placeholder="고르거나 적기"><datalist id="groups">${vuGroups().map(g=>`<option value="${esc(g.label)}">`).join('')}</datalist>
     <label>이름</label><input class="search" id="f_name" placeholder="김주성">
     <label>생년</label><input class="search" id="f_year" inputmode="numeric" maxlength="4" placeholder="1988 또는 88">
     <label>지역</label><input class="search" id="f_region" placeholder="역삼동 (주소 전체를 적어도 동·구·시로 줄여 저장)">
@@ -827,7 +819,8 @@ function addForm(kind, month){
 function pickKind(k){
   window._fKind = k; ['tr','vu'].forEach(x=>document.getElementById('k_'+x).classList.toggle('on', x===k));
   const g = document.getElementById('f_group'), off = k==='tr';
-  g.disabled = off;   // 1.13.0: 그룹1~10 고르기 (이관은 그룹 없음)
+  g.disabled = off; if(off) g.value = '';
+  g.placeholder = off ? '이관고객은 분류가 없습니다' : '고르거나 적기';
   document.getElementById('l_group').classList.toggle('off', off);
 }
 function saveNew(){
@@ -836,8 +829,7 @@ function saveNew(){
   if(!name){ toast('이름을 적어 주세요'); return; }
   if(phone.length<10){ toast('연락처를 확인해 주세요'); return; }
   const r = val('f_region');
-  const c = {kind, name, phone, month: normMonth(val('f_month')), group: '', year: birthYear(val('f_year')), region: shortRegion(r) || r, sent:''};
-  if(kind==='vu') c.gno = +val('f_group') || 1;
+  const c = {kind, name, phone, month: normMonth(val('f_month')), group: val('f_group'), year: birthYear(val('f_year')), region: shortRegion(r) || r, sent:''};
   const put = i => { save('customers', customers); stack.pop(); show(()=>detail(i)); toast('고객을 저장했습니다'); };
   const old = customers.findIndex(x=>x.phone===phone);
   if(old>=0) ask(`같은 번호로 ${customers[old].name} 고객이 이미 있습니다. 새로 적은 내용으로 바꿀까요?`,
@@ -872,29 +864,27 @@ window.onImported = function(rows){
   let cy=find(/생년|출생|생일/), cr=find(/지역|주소|사는곳/);   // 있으면 쓴다
   let body = rows;
   if(cn>=0 && cp>=0) body = rows.slice(1); else { ck=0; cn=1; cp=2; cg=-1; cm=-1; cy=-1; cr=-1; }
-  // 그룹 이름표 (1.13.0): 성격 칸이 아닌 곳에 '그룹1'~'그룹10'이 있으면 바로 오른쪽 칸이 그 그룹 이름. 표가 있으면 이름표를 통째로 바꾼다
-  const gmap = {}; let hasMap = false;
-  rows.forEach(r=>r.forEach((x,ci)=>{ if(ci===ck) return; const n = groupNo(x); if(n){ hasMap = true; const nm = String(r[ci+1]||'').trim(); if(nm) gmap[n] = nm; } }));
-  if(hasMap){ groupNames = gmap; save('groups', groupNames); }
+  // 1.13.0 모양 엑셀(성격 그룹1~10 + 오른쪽 그룹 이름표)도 읽는다: 그룹 번호 대신 이름표의 이름(없으면 '그룹N')을 분류로
+  const gmap = {};
+  rows.forEach(r=>r.forEach((x,ci)=>{ if(ci===ck) return; const n = groupNo(x); if(n){ const nm = String(r[ci+1]||'').trim(); if(nm) gmap[n] = nm; } }));
   if(window._replace) customers = [];
   const byPhone = new Map(customers.map((c,i)=>[c.phone,i]));
   let added=0, updated=0, skipped=0;
   for(const r of body){
     const gno = groupNo(r[ck]), kind = gno ? 'vu' : kindOf(r[ck]), name = String(r[cn]||'').trim(), phone = normPhone(r[cp]);
-    const group = gno ? '' : cg>=0 ? String(r[cg]||'').trim() : '', month = cm>=0 ? normMonth(r[cm]) : '';
+    const group = gno ? (gmap[gno] || '그룹'+gno) : cg>=0 ? String(r[cg]||'').trim() : '', month = cm>=0 ? normMonth(r[cm]) : '';
     const year = cy>=0 ? birthYear(r[cy]) : '', region = cr>=0 ? shortRegion(r[cr]) : '';
-    if(!name && phone.length<10) continue;   // 그룹 이름표만 있는 줄
+    if(!name && phone.length<10) continue;   // 이름·번호가 다 빈 줄 (옆 표만 있는 줄)
     if(!kind || !name || phone.length<10){ skipped++; continue; }
-    if(byPhone.has(phone)){ const c=customers[byPhone.get(phone)]; c.kind=kind; c.name=name; if(gno){ c.gno=gno; c.group=''; } else { delete c.gno; if(cg>=0) c.group=group; } if(month) c.month=month; if(year) c.year=year; if(region) c.region=region; updated++; }
-    else { byPhone.set(phone, customers.length); const c = {kind,name,phone,month,group,year,region,sent:''}; if(gno) c.gno = gno; customers.push(c); added++; }
+    if(byPhone.has(phone)){ const c=customers[byPhone.get(phone)]; c.kind=kind; c.name=name; delete c.gno; if(cg>=0 || gno) c.group=group; if(month) c.month=month; if(year) c.year=year; if(region) c.region=region; updated++; }
+    else { byPhone.set(phone, customers.length); customers.push({kind,name,phone,month,group,year,region,sent:''}); added++; }
   }
   save('customers', customers); lastImport = now(); save('lastImport', lastImport);
-  migrateGroups();
   show(home, false); stack.length=0; stack.push(home); saveNav();
   toast(`새 고객 ${added}명 · 바뀐 고객 ${updated}명`+(skipped?` · 건너뛴 줄 ${skipped}`:''));
 };
 
-migrateGroups();   // 그룹 이름표가 있으면 예전 분류 이름 문구·고객을 그룹 번호로 (1.13.0)
+undoGroups();   // 1.13.0 그룹 번호로 옮겨 둔 문구·고객을 분류 이름으로 되돌림 (1.14.0)
 if(!restoreNav()) show(home);   // 휴대폰이 앱을 정리했다가 다시 열린 때는 보던 화면으로
 checkAfterCal();
 </script>
