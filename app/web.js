@@ -6,7 +6,7 @@
 //  - 연락처 저장: 연락처 파일(.vcf) → [새로운 연락처 생성]
 // 자료(명단·기록·문구)는 이 휴대폰 브라우저 저장소에만 있다
 (function(){
-  const VERSION = '1.10.0';
+  const VERSION = '1.11.0';
   const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
   const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const say = t => window.toast ? toast(t) : alert(t);
@@ -163,11 +163,12 @@
     exit(){}
   };
 
-  // 첫 화면 아래: 캘린더 알림 안내 + (사파리에서 열었으면) 홈 화면 추가 안내
-  window.webExtra = function(){
-    return `<p class="note">약속과 부재중 '다시 전화'는 <b>구글 캘린더</b> 일정으로 들어갑니다. 열린 구글 캘린더에서 [저장]을 눌러야 알림이 옵니다.
+  // 웹판 안내 (1.11.0): 첫 화면 = (사파리에서 열었으면) 홈 화면 추가 안내 / 설정 화면 = 캘린더 알림 안내 + 판 번호
+  window.webExtra = function(where){
+    if(where==='home') return isIOS && !standalone ? `<p class="note" style="color:var(--miss)"><b>먼저 홈 화면에 추가하세요.</b> 사파리 아래 [공유] → [홈 화면에 추가] 후 홈 화면의 주피터로 여세요. 사파리에서 그냥 쓰면 오래 안 열 때 명단·기록이 지워질 수 있습니다.</p>` : '';
+    return `<label style="margin-top:22px">캘린더 알림</label>
+      <p class="note" style="margin-top:0">약속과 부재중 '다시 전화'는 <b>구글 캘린더</b> 일정으로 들어갑니다. 열린 구글 캘린더에서 [저장]을 눌러야 알림이 옵니다.
       알림이 일정 시작 때 오게 하려면 구글 캘린더 설정 > 기본 알림을 '이벤트 시작 시'로 해 두세요.</p>
-      ${isIOS && !standalone ? `<p class="note" style="color:var(--miss)"><b>먼저 홈 화면에 추가하세요.</b> 사파리 아래 [공유] → [홈 화면에 추가] 후 홈 화면의 주피터로 여세요. 사파리에서 그냥 쓰면 오래 안 열 때 명단·기록이 지워질 수 있습니다.</p>` : ''}
       <p class="note">주피터 웹 v${VERSION} · 명단과 기록은 이 휴대폰에만 저장됩니다.</p>`;
   };
 

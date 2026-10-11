@@ -14,7 +14,7 @@
 <meta name="theme-color" content="#0b1026">
 <meta name="format-detection" content="telephone=no">
 <meta name="robots" content="noindex, nofollow">
-<script src="web.js?v=1.10.0"></script>
+<script src="web.js?v=1.11.0"></script>
 <style>
 /* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
 :root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
@@ -41,7 +41,18 @@ main{padding:16px;max-width:760px;margin:0 auto}
 .btn.primary.call{background:var(--call);border-color:var(--call)}
 /* 첫 화면 단추 줄 (1.10.0): 고객 직접 추가 2 : 명단 불러오기 2 : 양식 1 / 아래 줄 문자 문구 · 연락처 양식 반반 */
 .homebar{display:grid;grid-template-columns:2fr 2fr 1fr;gap:8px;margin-top:14px}
-.homebar.two{grid-template-columns:1fr 1fr;margin-top:10px}
+/* 내 이름·직책 (1.11.0): 잠긴 칸 + [수정]/[저장] */
+.mefield{display:grid;grid-template-columns:64px 1fr 72px;gap:8px;align-items:center;margin-bottom:8px}
+.mefield span{font-size:14px;color:var(--sub);font-weight:700}
+.mefield .search{margin:0;padding:10px 12px}
+.mefield .search:disabled{background:transparent;border-style:dashed;color:var(--text);opacity:1;-webkit-text-fill-color:var(--text)}
+.mefield .btn{min-width:0;padding:10px 4px;font-size:15px}
+/* 설정 (1.11.0) */
+.setbtn{display:block;width:100%;margin-top:10px;font-weight:700}
+.setbtn small{font-weight:400;color:var(--sub);font-size:13px;margin-left:6px}
+.setrow{display:grid;grid-template-columns:1fr auto;width:100%;text-align:left;margin-top:10px;font-weight:700;align-items:center}
+.setrow small{grid-column:1;display:block;font-weight:400;color:var(--sub);font-size:13px;margin-top:4px}
+.setrow i{grid-column:2;grid-row:1 / span 2;font-style:normal;font-size:24px;color:var(--sub)}
 .homebar .btn{min-width:0;padding:14px 4px;font-size:clamp(13px,4.3vw,16px);letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .homebar .btn.primary{font-size:clamp(13px,4.3vw,16px);padding:14px 4px}
 .homebar .formdl{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:6px 2px;font-size:13px;color:var(--link)}
@@ -162,7 +173,8 @@ function tplOf(key){ const own = letters.tpl[key]; if(!own && key.includes(':'))
 function composeTpl(t, name){
   const head = String(t.head||'').replace(/^[\s,]+/, '');
   const first = name + (HONS.includes(t.hon) ? t.hon : '님') + (head ? ', ' + head : '');
-  return [first, t.body, t.tail].filter(s=>s && String(s).trim()).join('\n').replace(/\{(이름|고객명)\}/g, name);
+  return [first, t.body, t.tail].filter(s=>s && String(s).trim()).join('\n').replace(/\{(이름|고객명)\}/g, name)
+    .replace(/\{내이름\}/g, me.name || '').replace(/\{직책\}/g, me.title || '');   // 내 이름·직책 (1.11.0, 첫 화면에서 정함)
 }
 function composeText(key, name){ return composeTpl(tplOf(key), name); }
 let lastImport = load('lastImport', '');
@@ -186,6 +198,7 @@ function routeFn(r){
   if(v==='list' && KINDS[a]) return ()=>list(a);
   if(v==='month' && KINDS[a]) return ()=>month(a, b ?? null);
   if(v==='letters') return editLetters;
+  if(v==='settings') return settings;
   if(v==='contactFmt'){ const i = a ? idxOf(a) : -1; return ()=>contactFmtForm(i>=0 ? i : null); }
   if(v==='vutpls') return vuTpls;
   if(v==='tpl' && typeof a==='string' && DEFAULT_TPL[baseOf(a)]) return ()=>editTpl(a);
@@ -232,27 +245,55 @@ function home(){
   setBrand();
   const n = k => customers.filter(c=>c.kind===k).length;
   $v().innerHTML = `
-    <div class="kinds">
+    ${meField('name','내 이름','예: 김주성')}
+    ${meField('title','내 직책','예: FC, 팀장')}
+    <div class="kinds" style="margin-top:14px">
       <button class="kind tr" onclick="show(()=>list('tr'))">이관고객<small>${n('tr')}명</small></button>
       <button class="kind vu" onclick="show(()=>list('vu'))">밸류업<small>${n('vu')}명</small></button>
     </div>
     <div class="homebar">
-      <button class="btn primary" onclick="show(()=>addForm())">고객 직접 추가</button>
+      <button class="btn" onclick="show(()=>addForm())">고객 직접 추가</button>
       <button class="btn" onclick="importList()">명단 불러오기</button>
       <button class="btn formdl" onclick="downloadForm()" title="명단 양식 다운로드"><b>⬇</b>양식</button>
     </div>
-    <div class="homebar two">
-      <button class="btn" onclick="show(editLetters)">문자 문구</button>
-      <button class="btn" onclick="show(()=>contactFmtForm(null))">연락처 양식: ${contactFmt.mode==='manual'?'수동':'자동'}</button>
-    </div>
+    <button class="btn setbtn" onclick="show(settings)">⚙ 설정 <small>문자 문구 · 연락처 양식 · 화면 스타일</small></button>
     <p class="note">${lastImport ? '마지막으로 불러온 때: '+esc(lastImport)+'<br>' : ''}
     명단 엑셀은 <b>성격(이관/밸류업) · 월 · 분류 · 이름 · 생년 · 지역 · 연락처</b> 칸으로 만들어 (월: 2026-09, 분류: 밸류업 캠페인) 구글 드라이브에 올린 뒤, [명단 불러오기]에서 고르세요. [⬇ 양식]으로 받은 엑셀에 적으면 됩니다.</p>
-    <div class="theme"><span>화면</span>
-      ${[['auto','자동'],['light','밝게'],['dark','어둡게']].map(([k,t])=>`<button class="btn seg${themeMode===k?' on':''}" onclick="setTheme('${k}')">${t}</button>`).join('')}</div>
-    ${window.webExtra ? webExtra() : ''}`;   // 웹판(아이폰)에서만: 캘린더 알림 안내·홈 화면 추가 안내 (web.js)
+    ${window.webExtra ? webExtra('home') : ''}`;   // 웹판(아이폰)에서만: 홈 화면 추가 안내 (web.js)
 }
 
-// ---------- 화면 모드: 자동(휴대폰 설정) / 밝게 / 어둡게 ----------
+// ---------- 내 이름 · 직책 (1.11.0) ----------
+// 평소에는 잠겨 있고 [수정]을 눌러야 고칠 수 있다 → [저장]을 누르면 다시 잠긴다 (쉽게 바뀌지 않게)
+// 문자 문구에서 {내이름} {직책} 자리에 들어간다
+let me = load('me', {name:'', title:''});
+function meField(k, label, ph){
+  return `<div class="mefield"><span>${label}</span>
+    <input class="search" id="me_${k}" value="${esc(me[k])}" placeholder="${ph}" disabled>
+    <button class="btn" id="meb_${k}" onclick="meEdit('${k}')">수정</button></div>`;
+}
+function meEdit(k){
+  const inp = document.getElementById('me_'+k), b = document.getElementById('meb_'+k);
+  if(inp.disabled){ inp.disabled = false; inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); b.textContent = '저장'; b.classList.add('primary'); return; }
+  me[k] = inp.value.trim(); save('me', me);
+  inp.value = me[k]; inp.disabled = true; b.textContent = '수정'; b.classList.remove('primary');
+  toast((k==='name' ? '내 이름' : '내 직책') + '을 저장했습니다');
+}
+
+// ---------- 설정 (1.11.0): 문자 문구 · 연락처 양식 · 화면 스타일 ----------
+function settings(){
+  setTitle('설정');
+  curRoute = ['settings'];
+  $v().innerHTML = `
+    <button class="btn setrow" onclick="show(editLetters)">문자 문구 <small>이관고객 · 밸류업 문구, 약속 안내</small><i>›</i></button>
+    <button class="btn setrow" onclick="show(()=>contactFmtForm(null))">연락처 양식 <small>${contactFmt.mode==='manual'?'수동':'자동'} — 연락처에 저장할 이름 모양</small><i>›</i></button>
+    <label style="margin-top:22px">화면 스타일</label>
+    <div class="theme" style="margin-top:0">
+      ${[['light','밝게'],['dark','어둡게']].map(([k,t])=>`<button class="btn seg${themeMode===k?' on':''}" onclick="setTheme('${k}')">${t}</button>`).join('')}</div>
+    <p class="note">${themeMode==='auto' ? '지금은 휴대폰 설정(다크 모드)을 따릅니다. 밝게·어둡게를 고르면 그 화면으로 고정됩니다.' : '휴대폰 설정과 상관없이 이 화면으로 보입니다.'}</p>
+    ${window.webExtra ? webExtra('settings') : ''}`;   // 웹판: 캘린더 알림 안내 · 판 번호 (web.js)
+}
+
+// ---------- 화면 모드: 기본은 자동(휴대폰 설정), 설정에서 밝게 / 어둡게로 고정 ----------
 let themeMode = load('theme', 'auto');
 function applyTheme(){
   const sysDark = window.Android && Android.isNightMode ? Android.isNightMode() : matchMedia('(prefers-color-scheme: dark)').matches;
@@ -260,7 +301,7 @@ function applyTheme(){
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   if(window.Android && Android.setDark) Android.setDark(dark);   // 위 상태 표시줄·아래 버튼 줄 색도 맞춘다
 }
-function setTheme(k){ themeMode = k; save('theme', k); applyTheme(); show(home, false); }
+function setTheme(k){ themeMode = k; save('theme', k); applyTheme(); show(stack[stack.length-1] || home, false); }
 applyTheme();
 
 // ---------- 월 · 분류 ----------
@@ -678,10 +719,12 @@ function editTpl(key){
     <div class="tabs"><button id="tab_g" onclick="tplTab('g')">인사말</button><button id="tab_a" onclick="tplTab('a')">약속안내</button></div>
     <div id="pane_g">
       <p class="note" style="margin:8px 0 0">문자는 <b>고객 이름 + 호칭, 머리말</b> / 본문 / 마무리 순서로 이어집니다.</p>
+      <!-- 1.11.0: 내 이름·직책 자리 (첫 화면에서 정함). 마지막으로 누른 칸에 넣는다 -->
+      <div class="chips" style="margin-top:10px">${['{내이름}','{직책}'].map(x=>`<button onclick="insAppt('${x}', window._lastTa)">${x}</button>`).join('')}</div>
       <!-- 1.6.0: 머리말·본문·마무리 제목은 없애고 빈 칸 안의 흐린 안내 글(글을 쓰면 사라짐)로 알려 준다 -->
-      <textarea id="t_head" class="tbox" style="min-height:80px" placeholder="머리말&#10;예: 안녕하세요. 김주성입니다." oninput="tplPreview()">${esc(t.head)}</textarea>
-      <textarea id="t_body" class="tbox" placeholder="본문&#10;예: 전하고 싶은 내용" oninput="tplPreview()">${esc(t.body)}</textarea>
-      <textarea id="t_tail" class="tbox" style="min-height:80px" placeholder="마무리&#10;예: 감사합니다." oninput="tplPreview()">${esc(t.tail)}</textarea>
+      <textarea id="t_head" class="tbox" style="min-height:80px" placeholder="머리말&#10;예: 안녕하세요. {직책} {내이름}입니다." onfocus="window._lastTa=this.id" oninput="tplPreview()">${esc(t.head)}</textarea>
+      <textarea id="t_body" class="tbox" placeholder="본문&#10;예: 전하고 싶은 내용" onfocus="window._lastTa=this.id" oninput="tplPreview()">${esc(t.body)}</textarea>
+      <textarea id="t_tail" class="tbox" style="min-height:80px" placeholder="마무리&#10;예: 감사합니다." onfocus="window._lastTa=this.id" oninput="tplPreview()">${esc(t.tail)}</textarea>
       <div class="card" style="margin-top:14px"><div class="meta" style="margin-bottom:8px">인사말 미리보기 (예: 김주성)</div><div class="preview" id="t_prev"></div><div class="count" id="t_cnt"></div></div>
     </div>
     <div id="pane_a" class="hidden">
@@ -693,6 +736,7 @@ function editTpl(key){
     </div>
     <button class="btn primary" style="width:100%" onclick="saveTpl()">저장</button>
     ${grp && own ? `<button class="btn" style="width:100%;margin-top:10px" onclick="resetTpl()">기본 문구로 되돌리기</button>` : ''}`;
+  window._lastTa = 't_head';
   window._hon = t.hon;
   pickHon(t.hon);
   tplTab(window._tplTabKey===key && window._tplTab || 'g');   // 같은 문구로 돌아오면 보던 탭 그대로
@@ -703,8 +747,8 @@ function tplTab(x){
 }
 function readTpl(){ const g = id => document.getElementById(id).value; return {hon:window._hon, head:g('t_head').trim(), body:g('t_body'), tail:g('t_tail'), appt:g('t_appt')}; }
 // {날짜} 등 단추: 약속 칸의 커서 자리에 넣는다
-function insAppt(x){
-  const a = document.getElementById('t_appt'), s = a.selectionStart ?? a.value.length, e = a.selectionEnd ?? s;
+function insAppt(x, id){
+  const a = document.getElementById(id || 't_appt'), s = a.selectionStart ?? a.value.length, e = a.selectionEnd ?? s;
   a.value = a.value.slice(0, s) + x + a.value.slice(e); a.focus(); a.selectionStart = a.selectionEnd = s + x.length; tplPreview();
 }
 function pickHon(h){
