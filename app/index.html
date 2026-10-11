@@ -14,7 +14,7 @@
 <meta name="theme-color" content="#0b1026">
 <meta name="format-detection" content="telephone=no">
 <meta name="robots" content="noindex, nofollow">
-<script src="web.js?v=1.12.0"></script>
+<script src="web.js?v=1.12.1"></script>
 <style>
 /* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
 :root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
@@ -174,9 +174,14 @@ function tplOf(key){ const own = letters.tpl[key]; if(!own && key.includes(':'))
 function composeTpl(t, name){
   const head = String(t.head||'').replace(/^[\s,]+/, '');
   const first = name + (HONS.includes(t.hon) ? t.hon : '님') + (head ? ', ' + head : '');
-  return [first, t.body, t.tail].filter(s=>s && String(s).trim()).join('\n').replace(/\{(이름|고객명)\}/g, name)
-    .replace(/\{내이름\}/g, me.name || '').replace(/\{직책\}/g, me.title || '');   // 내 이름·직책 (1.11.0, 첫 화면에서 정함)
+  return [first, t.body, t.tail].filter(s=>s && String(s).trim()).join('\n').replace(/\{(이름|고객명|고객님이름)\}/g, name)
+    .replace(/\{내이름\}/g, myName()).replace(/\{직책\}/g, me.title || '');   // 내 이름 = 이름 + 직책 (1.12.1, 첫 화면에서 정함)
 }
+// 문자 문구 자리 단추 (1.12.1): 단추에는 날짜·시간처럼 이름만, 누르면 칸에 {날짜}로 들어간다
+function myName(){ return [me.name, me.title].filter(Boolean).join(' '); }
+function chipBtns(list, target){ return list.map(([label, tok])=>`<button onclick="insAppt('${tok}', ${target})">${label}</button>`).join(''); }
+const CHIP_WHO = [['고객님 이름','{고객님이름}'],['내 이름','{내이름}']];
+const CHIP_APPT = [['날짜','{날짜}'],['시간','{시간}'],['장소','{장소}'],['링크','{링크}']];
 function composeText(key, name){ return composeTpl(tplOf(key), name); }
 let lastImport = load('lastImport', '');
 
@@ -718,17 +723,18 @@ function editTpl(key){
     <div class="tabs"><button id="tab_g" onclick="tplTab('g')">인사말</button><button id="tab_a" onclick="tplTab('a')">약속안내</button></div>
     <div id="pane_g">
       <p class="note" style="margin:8px 0 0">문자는 <b>고객 이름 + 호칭, 머리말</b> / 본문 / 마무리 순서로 이어집니다.</p>
-      <!-- 1.11.0: 내 이름·직책 자리 (첫 화면에서 정함). 마지막으로 누른 칸에 넣는다 -->
-      <div class="chips" style="margin-top:10px">${['{내이름}','{직책}'].map(x=>`<button onclick="insAppt('${x}', window._lastTa)">${x}</button>`).join('')}</div>
+      <!-- 1.12.1: 고객님 이름·내 이름(이름 + 직책) 자리. 마지막으로 누른 칸에 넣는다 -->
+      <div class="chips" style="margin-top:10px">${chipBtns(CHIP_WHO, 'window._lastTa')}</div>
+      <p class="note" style="margin:6px 0 0">[내 이름]에는 첫 화면에서 정한 이름과 직책이 함께 들어갑니다${myName() ? ' (지금: '+esc(myName())+')' : ''}.</p>
       <!-- 1.6.0: 머리말·본문·마무리 제목은 없애고 빈 칸 안의 흐린 안내 글(글을 쓰면 사라짐)로 알려 준다 -->
-      <textarea id="t_head" class="tbox" style="min-height:80px" placeholder="머리말&#10;예: 안녕하세요. {직책} {내이름}입니다." onfocus="window._lastTa=this.id" oninput="tplPreview()">${esc(t.head)}</textarea>
+      <textarea id="t_head" class="tbox" style="min-height:80px" placeholder="머리말&#10;예: 안녕하세요. {내이름}입니다." onfocus="window._lastTa=this.id" oninput="tplPreview()">${esc(t.head)}</textarea>
       <textarea id="t_body" class="tbox" placeholder="본문&#10;예: 전하고 싶은 내용" onfocus="window._lastTa=this.id" oninput="tplPreview()">${esc(t.body)}</textarea>
       <textarea id="t_tail" class="tbox" style="min-height:80px" placeholder="마무리&#10;예: 감사합니다." onfocus="window._lastTa=this.id" oninput="tplPreview()">${esc(t.tail)}</textarea>
       <div class="card" style="margin-top:14px"><div class="meta" style="margin-bottom:8px">인사말 미리보기 (예: 김주성)</div><div class="preview" id="t_prev"></div><div class="count" id="t_cnt"></div></div>
     </div>
     <div id="pane_a" class="hidden">
       <p class="note" style="margin:8px 0 0">고객 화면 [약속]에서 쓰는 문자입니다. 호칭·머리말·마무리는 인사말 탭과 같고, 아래 칸이 본문 자리에 들어갑니다.</p>
-      <div class="chips" style="margin-top:10px">${['{날짜}','{시간}','{장소}','{링크}'].map(x=>`<button onclick="insAppt('${x}')">${x}</button>`).join('')}</div>
+      <div class="chips" style="margin-top:10px">${chipBtns(CHIP_APPT.concat(CHIP_WHO), "'t_appt'")}</div>
       <textarea id="t_appt" class="tbox" style="min-height:110px" placeholder="약속 안내&#10;예: {날짜} {시간}에 {장소}에서 뵙겠습니다." oninput="tplPreview()">${esc(t.appt)}</textarea>
       <p class="note" style="margin:6px 0 0">{날짜} {시간} {장소} {링크} 자리에 약속 내용이 들어갑니다. 장소명이 없으면 '{장소}에서'는 빠지고, 링크는 {링크}가 없으면 맨 아래에 붙습니다.</p>
       <div class="card" style="margin-top:10px"><div class="meta" style="margin-bottom:8px">약속안내 미리보기 (예: 내일 오후 2시 · 역삼역 스타벅스)</div><div class="preview" id="t_aprev"></div><div class="count" id="t_acnt"></div></div>
