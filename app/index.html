@@ -10,20 +10,26 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="주피터">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#0b1026">
 <meta name="format-detection" content="telephone=no">
 <meta name="robots" content="noindex, nofollow">
-<script src="web.js?v=1.8.2"></script>
+<script src="web.js?v=1.9.0"></script>
 <style>
 /* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
 :root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
 :root[data-theme=dark]{--bg:#111318;--card:#1c1f27;--text:#eceef4;--sub:#9aa1ae;--line:#2d313c;--accent:#5466c4;--link:#9eacff;--accent2:#e6b05a;--ok:#4cc382;--tr:#6f82e6;--vu:#d79a3e;--call:#2b8a52;--miss:#b8473c;color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;font-size:17px}
-header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:14px 16px;min-height:58px}
-header h1{font-size:20px;margin:0;flex:1}
-.back{border:0;background:none;color:var(--link);font-size:26px;padding:0 6px 0 0;line-height:1}
+/* 머리글 (1.9.0): 로고와 같은 남색 바탕 + 금색 글씨, 제목은 가운데. 밝게·어둡게 모두 같은 색 */
+header{position:sticky;top:0;z-index:5;background:linear-gradient(115deg,#0b1026 0%,#18214a 55%,#262338 100%);border-bottom:2px solid #c9a24a;box-shadow:0 2px 10px rgba(11,16,38,.25);display:grid;grid-template-columns:44px 1fr 44px;align-items:center;padding:10px 12px;min-height:60px}
+header h1{font-size:20px;margin:0;text-align:center;color:#f1d892;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.3px}
+.back{border:0;background:none;color:#f1d892;font-size:30px;padding:0 6px 0 0;line-height:1;text-align:left}
+header .back.hidden{display:block;visibility:hidden}
+.brand{display:inline-flex;align-items:center;gap:10px;vertical-align:middle}
+.brand img{width:38px;height:38px;border-radius:10px;box-shadow:0 0 0 1px rgba(241,216,146,.55),0 2px 8px rgba(0,0,0,.45)}
+.brand b{display:block;text-align:left;font-family:"Nanum Myeongjo","Noto Serif KR","AppleMyungjo",serif;font-size:23px;font-weight:800;line-height:1.05;background:linear-gradient(180deg,#fff3c8 0%,#e7c06a 55%,#c08a2e 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand small{display:block;text-align:left;font-size:10px;letter-spacing:4.5px;color:#c9a24a;margin-top:3px;font-weight:600}
 main{padding:16px;max-width:760px;margin:0 auto}
 .kinds{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .kind{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 16px;text-align:left;color:var(--text);font-size:20px;font-weight:700}
@@ -105,7 +111,7 @@ ul.names li .st{font-size:15px}
 </style>
 </head>
 <body>
-<header><button class="back hidden" id="back" onclick="goBack()">‹</button><h1 id="title">주피터</h1></header>
+<header><button class="back hidden" id="back" onclick="goBack()">‹</button><h1 id="title">주피터</h1><span></span></header>
 <main id="view"></main>
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal"><div class="box"><div class="mtext" id="mText"></div><div class="row" id="mBtns"></div></div></div>
@@ -207,6 +213,8 @@ window.onBack = function(){ if(document.getElementById('modal').style.display===
 const $v = () => document.getElementById('view');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function setTitle(t){ document.getElementById('title').textContent = t; }
+// 첫 화면 제목 (1.9.0): 로고 + 주피터 / JUPITER
+function setBrand(){ document.getElementById('title').innerHTML = '<span class="brand"><img src="logo.png" alt=""><span><b>주피터</b><small>JUPITER</small></span></span>'; }
 function toast(t){ const e=document.getElementById('toast'); e.textContent=t; e.style.display='block'; clearTimeout(e._t); e._t=setTimeout(()=>e.style.display='none',2600); }
 function ask(text, buttons){ document.getElementById('mText').textContent=text; const b=document.getElementById('mBtns'); b.innerHTML='';
   buttons.forEach(([label,fn,primary])=>{ const x=document.createElement('button'); x.className='btn'+(primary?' primary':''); x.textContent=label; x.onclick=()=>{ closeModal(); fn&&fn(); }; b.appendChild(x); });
@@ -215,7 +223,7 @@ function closeModal(){ document.getElementById('modal').style.display='none'; }
 
 // ---------- 첫 화면: 이관 / 밸류업 ----------
 function home(){
-  setTitle('주피터');
+  setBrand();
   const n = k => customers.filter(c=>c.kind===k).length;
   $v().innerHTML = `
     <div class="kinds">

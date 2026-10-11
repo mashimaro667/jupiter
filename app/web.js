@@ -6,7 +6,7 @@
 //  - 연락처 저장: 연락처 파일(.vcf) → [새로운 연락처 생성]
 // 자료(명단·기록·문구)는 이 휴대폰 브라우저 저장소에만 있다
 (function(){
-  const VERSION = '1.8.2';
+  const VERSION = '1.9.0';
   const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
   const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const say = t => window.toast ? toast(t) : alert(t);
@@ -158,7 +158,7 @@
       say('명단 양식을 받습니다. 다운로드(파일 앱)에서 열어 적으세요');
     },
     isNightMode(){ return matchMedia('(prefers-color-scheme: dark)').matches; },
-    setDark(dark){ const m = document.querySelector('meta[name=theme-color]'); if(m) m.content = dark ? '#1c1f27' : '#ffffff'; },
+    setDark(dark){},   // 위 상태 표시줄은 늘 머리글 남색 (theme-color #0b1026, 1.9.0)
     pickFile,
     exit(){}
   };
