@@ -14,7 +14,7 @@
 <meta name="theme-color" content="#0b1026">
 <meta name="format-detection" content="telephone=no">
 <meta name="robots" content="noindex, nofollow">
-<script src="web.js?v=1.9.0"></script>
+<script src="web.js?v=1.10.0"></script>
 <style>
 /* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
 :root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
@@ -39,7 +39,13 @@ main{padding:16px;max-width:760px;margin:0 auto}
 .btn{flex:1;min-width:140px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:14px;font-size:16px}
 .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;font-size:18px;padding:16px}
 .btn.primary.call{background:var(--call);border-color:var(--call)}
-.formdl{display:block;width:100%;border:0;background:none;color:var(--link);font-size:14px;padding:8px 0 0;text-align:center}
+/* 첫 화면 단추 줄 (1.10.0): 고객 직접 추가 2 : 명단 불러오기 2 : 양식 1 / 아래 줄 문자 문구 · 연락처 양식 반반 */
+.homebar{display:grid;grid-template-columns:2fr 2fr 1fr;gap:8px;margin-top:14px}
+.homebar.two{grid-template-columns:1fr 1fr;margin-top:10px}
+.homebar .btn{min-width:0;padding:14px 4px;font-size:clamp(13px,4.3vw,16px);letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.homebar .btn.primary{font-size:clamp(13px,4.3vw,16px);padding:14px 4px}
+.homebar .formdl{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:6px 2px;font-size:13px;color:var(--link)}
+.homebar .formdl b{font-size:18px;line-height:1}
 .theme{display:flex;align-items:center;gap:8px;margin-top:18px}
 .theme span{color:var(--sub);font-size:14px;white-space:nowrap}
 .theme .btn{min-width:0;padding:10px 6px;font-size:15px}
@@ -230,15 +236,17 @@ function home(){
       <button class="kind tr" onclick="show(()=>list('tr'))">이관고객<small>${n('tr')}명</small></button>
       <button class="kind vu" onclick="show(()=>list('vu'))">밸류업<small>${n('vu')}명</small></button>
     </div>
-    <button class="btn primary" style="width:100%;margin-top:14px" onclick="show(()=>addForm())">고객 직접 추가</button>
-    <div class="row" style="align-items:flex-start">
-      <div style="flex:1;min-width:140px"><button class="btn" style="width:100%" onclick="importList()">명단 불러오기</button>
-        <button class="formdl" onclick="downloadForm()">⬇ 명단 양식 다운로드</button></div>
-      <button class="btn" onclick="show(editLetters)">문자 문구</button>
+    <div class="homebar">
+      <button class="btn primary" onclick="show(()=>addForm())">고객 직접 추가</button>
+      <button class="btn" onclick="importList()">명단 불러오기</button>
+      <button class="btn formdl" onclick="downloadForm()" title="명단 양식 다운로드"><b>⬇</b>양식</button>
     </div>
-    <button class="btn" style="width:100%;margin-top:10px" onclick="show(()=>contactFmtForm(null))">연락처 이름 양식: ${contactFmt.mode==='manual'?'수동':'자동'}</button>
+    <div class="homebar two">
+      <button class="btn" onclick="show(editLetters)">문자 문구</button>
+      <button class="btn" onclick="show(()=>contactFmtForm(null))">연락처 양식: ${contactFmt.mode==='manual'?'수동':'자동'}</button>
+    </div>
     <p class="note">${lastImport ? '마지막으로 불러온 때: '+esc(lastImport)+'<br>' : ''}
-    명단 엑셀은 <b>성격(이관/밸류업) · 월 · 분류 · 이름 · 생년 · 지역 · 연락처</b> 칸으로 만들어 (월: 2026-09, 분류: 밸류업 캠페인) 구글 드라이브에 올린 뒤, [명단 불러오기]에서 고르세요. [명단 양식 다운로드]로 받은 엑셀에 적으면 됩니다.</p>
+    명단 엑셀은 <b>성격(이관/밸류업) · 월 · 분류 · 이름 · 생년 · 지역 · 연락처</b> 칸으로 만들어 (월: 2026-09, 분류: 밸류업 캠페인) 구글 드라이브에 올린 뒤, [명단 불러오기]에서 고르세요. [⬇ 양식]으로 받은 엑셀에 적으면 됩니다.</p>
     <div class="theme"><span>화면</span>
       ${[['auto','자동'],['light','밝게'],['dark','어둡게']].map(([k,t])=>`<button class="btn seg${themeMode===k?' on':''}" onclick="setTheme('${k}')">${t}</button>`).join('')}</div>
     ${window.webExtra ? webExtra() : ''}`;   // 웹판(아이폰)에서만: 캘린더 알림 안내·홈 화면 추가 안내 (web.js)
