@@ -14,7 +14,7 @@
 <meta name="theme-color" content="#0b1026">
 <meta name="format-detection" content="telephone=no">
 <meta name="robots" content="noindex, nofollow">
-<script src="web.js?v=1.14.0"></script>
+<script src="web.js?v=1.14.1"></script>
 <style>
 /* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
 :root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
@@ -191,7 +191,7 @@ let lastImport = load('lastImport', '');
 
 // ---------- 화면 이동 ----------
 const stack = [];
-function show(fn, push=true){ if(push) stack.push(fn); curRoute = ['home']; fn(); fn._route = curRoute; saveNav(); document.getElementById('back').classList.toggle('hidden', stack.length<=1); window.scrollTo(0,0); }
+function show(fn, push=true){ meFlush(); if(push) stack.push(fn); curRoute = ['home']; fn(); fn._route = curRoute; saveNav(); document.getElementById('back').classList.toggle('hidden', stack.length<=1); window.scrollTo(0,0); }
 function goBack(){ if(stack.length>1){ stack.pop(); show(stack[stack.length-1], false); scrollToLast(); } else { clearNav(); if(window.Android) Android.exit(); } }
 
 // ---------- 보던 화면 되살리기 (1.3.2) ----------
@@ -276,9 +276,13 @@ function home(){
 // 문자 문구에서 {내이름} {직책} 자리에 들어간다
 let me = load('me', {name:'', title:''});
 function meField(k, ph){   // 1.12.0: 칸 이름 없이 흐린 안내 글(내 이름 / 내 직책)만
-  return `<input class="search" id="me_${k}" value="${esc(me[k])}" placeholder="${ph}" aria-label="${ph}" disabled>
+  return `<input class="search" id="me_${k}" value="${esc(me[k])}" placeholder="${ph}" aria-label="${ph}" disabled onkeydown="if(event.key==='Enter')meEdit('${k}')">
     <button class="btn" id="meb_${k}" onclick="meEdit('${k}')">수정</button>`;
 }
+// 1.14.1: [수정]을 누르고 고치다가 [저장] 없이 다른 화면으로 가거나 앱을 닫아도 지워지지 않게 그대로 저장한다 (엔터도 저장)
+function meFlush(){ ['name','title'].forEach(k=>{ const i = document.getElementById('me_'+k); if(i && !i.disabled) meEdit(k); }); }
+window.addEventListener('pagehide', meFlush);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') meFlush(); });
 function meEdit(k){
   const inp = document.getElementById('me_'+k), b = document.getElementById('meb_'+k);
   if(inp.disabled){ inp.disabled = false; inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); b.textContent = '저장'; b.classList.add('primary'); return; }
