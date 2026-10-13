@@ -14,7 +14,7 @@
 <meta name="theme-color" content="#0b1026">
 <meta name="format-detection" content="telephone=no">
 <meta name="robots" content="noindex, nofollow">
-<script src="web.js?v=1.15.1"></script>
+<script src="web.js?v=1.16.0"></script>
 <style>
 /* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
 :root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
@@ -435,7 +435,7 @@ function detail(i){
 // ---------- 기록: 부재중 · 통화완료 · 약속 (1.2.0, 2026-10-11 지시) ----------
 // 기록은 연락처 번호별로 따로 둔다 (명단을 '새로 넣기'로 다시 불러와도 남게)
 // 부재중: 1·2·3시간 뒤 또는 정한 시각에 '다시 전화' 휴대폰 알림 (고객마다 하나, 새로 걸면 바뀜. 통화완료를 적으면 꺼짐)
-// 약속: 날짜·시간·장소 → 구글 캘린더 새 일정 화면을 채워 열고, 돌아오면 약속 화면에서 고친 약속 문자를 문자 앱에 채워 연다
+// 약속: 날짜·시간·장소 → [저장] [캘린더] [문자] 버튼을 따로 누른다 (1.16.0, 그 전엔 저장 → 캘린더 → 문자가 이어졌음)
 let records = load('records', {});   // 번호 → [{type:'miss'|'call'|'appt', at:'yyyy-mm-dd hh:mm', remindAt:밀리초, off, memo, date:'yyyy-mm-dd', time:'hh:mm', place}]
 const RN = {miss:'부재중', call:'통화완료', appt:'약속'}, RI = {miss:'📵', call:'✅', appt:'📅'};
 const REC = Object.fromEntries(Object.keys(RN).map(k=>[k, RI[k]+' '+RN[k]]));
@@ -459,7 +459,7 @@ function recordCard(i){
   return `<div class="card" style="margin-top:14px"><div class="meta" style="margin-bottom:8px">기록</div>
     <div class="rec3"><button class="btn miss" onclick="recMiss(${i})">부재중</button>
       <button class="btn done" onclick="recCall(${i})">통화완료</button>
-      <button class="btn appt" onclick="show(()=>apptForm(${i}))">약속</button></div>
+      <button class="btn appt" onclick="show(()=>apptForm(${i},true))">약속</button></div>
     ${p?`<div class="remind"><span>⏰ ${esc(whenLabel(p.remindAt))}에 다시 전화 알림</span><button onclick="offRemind(${i})">알림 끄기</button></div>`:''}
     ${hist.length?`<ul class="hist">${hist.map(r=>`<li><span class="when">${esc(r.at.slice(5).replace('-','/'))}</span>${REC[r.type]||''}
       ${r.type==='miss' && r.remindAt?`<span class="meta"> · ⏰ ${esc(whenLabel(r.remindAt))}${r.off?' (꺼짐)':''}</span>`:''}
@@ -518,7 +518,7 @@ function delRec(i, k){
 }
 
 // 약속: 날짜 · 시간 · 장소 (+메모)
-function apptForm(i){
+function apptForm(i, fresh){
   const c = customers[i]; setTitle(c.name + ' 약속');
   curRoute = ['appt', c.phone];
   const t = new Date(Date.now()+86400000), tomorrow = `${t.getFullYear()}-${z2(t.getMonth()+1)}-${z2(t.getDate())}`;
@@ -531,10 +531,17 @@ function apptForm(i){
     <label>보낼 약속 문자 <span class="meta" style="font-weight:400">(이 고객에게 맞게 바로 고쳐 쓰면 됨)</span></label>
     <textarea id="a_msg" style="min-height:150px" oninput="window._apptDirty=true"></textarea>
     <div class="count"><a href="#" style="color:var(--link)" onclick="window._apptDirty=false;apptPreview(${i});return false">날짜·장소대로 다시 쓰기</a></div>
-    <button class="btn primary" style="width:100%;margin-top:10px" onclick="saveAppt(${i})">저장 → 캘린더 → 문자</button>
-    <p class="note">저장하면 약속이 기록되고 구글 캘린더의 새 일정 화면이 채워진 채로 열립니다. 캘린더에서 저장하고 돌아오면 위 약속 문자를 보낼지 묻습니다.</p>`;
-  window._apptDirty = false;
+    <div class="rec3" style="margin-top:10px"><button class="btn appt" onclick="saveAppt(${i})">저장</button>
+      <button class="btn done" id="a_cal" onclick="apptStep(${i},'cal')">캘린더</button>
+      <button class="btn miss" id="a_sms" onclick="apptStep(${i},'sms')">문자</button></div>
+    <p class="note">[저장]은 약속만 기록하고 고객 화면으로 돌아갑니다. [캘린더]·[문자]는 약속을 기록하고 각각 구글 캘린더 새 일정·문자 앱을 엽니다. 다녀오면 이 화면 그대로라 남은 버튼을 이어서 누르면 됩니다.</p>`;
+  window._apptDirty = false; window._apptK = -1;
   apptPreview(i);
+  // 캘린더·문자에 다녀오는 사이 휴대폰이 앱을 정리해 이 화면이 다시 열리면, 적어 둔 약속을 그대로 채워 같은 기록을 이어 쓴다 (1.16.0)
+  const d = load('apptDraft', null);
+  if(fresh || !d || d.phone!==c.phone || Date.now()-d.at > 3600000 || !(recsOf(c)[d.k]||{}).type){ try{ localStorage.removeItem('apptDraft'); }catch(e){} return; }
+  [['a_date','date'],['a_time','time'],['a_place','place'],['a_link','link'],['a_memo','memo'],['a_msg','msg']].forEach(([id,f])=>{ document.getElementById(id).value = d[f]||''; });
+  window._apptDirty = true; window._apptK = d.k;
 }
 // 장소명·링크 (1.3.1): 둘 다 적지 않아도 된다. 장소명이 없으면 문구의 '{장소}에서'를 통째로 뺀다.
 // 링크는 문구에 {링크}가 있으면 그 자리에, 없으면 문자 맨 아래 '위치: 링크' 줄로 붙인다
@@ -557,26 +564,33 @@ function apptPreview(i){
   const g = id => document.getElementById(id).value.trim();
   document.getElementById('a_msg').value = apptText(customers[i], {date:g('a_date'), time:g('a_time'), place:g('a_place'), link:normLink(g('a_link'))});
 }
-function saveAppt(i){
+// 약속 버튼 나누기 (1.16.0, 2026-10-13 지시: '정보입력-캘린더-문자 자동 넘어가는데 버튼 쪼개줘')
+// [저장] [캘린더] [문자]가 따로. 어느 버튼이든 먼저 약속을 기록하고, 같은 화면에서 또 누르면 같은 기록을 지금 칸 내용으로 고친다
+function apptRec(i){
   const g = id => document.getElementById(id).value.trim(), c = customers[i];
   const r = {type:'appt', date:g('a_date'), time:g('a_time'), place:g('a_place'), link:normLink(g('a_link')), memo:g('a_memo'), msg:document.getElementById('a_msg').value};
-  if(!r.date || !r.time){ toast('날짜와 시간을 골라 주세요'); return; }
-  addRec(c, r);
-  const k = recsOf(c).length - 1;
-  stack.pop(); show(stack[stack.length-1], false);   // 고객 화면으로 돌아와서
-  // 캘린더에서 돌아오면 약속 문자를 보낼지 묻는다. 그사이 휴대폰이 앱을 정리해도 물을 수 있게 앱 저장소에 적어 둔다 (1.3.2)
-  save('afterCal', {phone:c.phone, k, at:Date.now()});
-  if(!apptCal(i, k, true)) checkAfterCal(0);
+  if(!r.date || !r.time){ toast('날짜와 시간을 골라 주세요'); return -1; }
+  const list = recsOf(c), k = window._apptK;
+  if(k >= 0 && list[k] && list[k].type==='appt'){ list[k] = {...list[k], ...r}; save('records', records); }
+  else { addRec(c, r); window._apptK = recsOf(c).length - 1; }
+  save('apptDraft', {phone:c.phone, k:window._apptK, at:Date.now(), ...r});
+  return window._apptK;
 }
-// 캘린더에서 돌아오면 (MainActivity.onResume, 또는 앱이 다시 열릴 때) — 1시간 안의 것만
-function checkAfterCal(delay=400){
-  const a = load('afterCal', null); if(!a) return;
-  try{ localStorage.removeItem('afterCal'); }catch(e){}
-  if(Date.now()-a.at > 3600000) return;
-  setTimeout(()=>{ const i = idxOf(a.phone); if(i>=0) ask('약속 문자도 보낼까요?', [['문자 보내기',()=>apptSms(i, a.k),true],['나중에']]); }, delay);
+function saveAppt(i){
+  if(apptRec(i) < 0) return;
+  try{ localStorage.removeItem('apptDraft'); }catch(e){}
+  toast('약속을 기록했습니다');
+  stack.pop(); show(stack[stack.length-1], false);   // 고객 화면으로
 }
-window.onResumeApp = () => checkAfterCal();
-function apptCal(i, k, quiet){
+function apptStep(i, what){
+  const k = apptRec(i); if(k < 0) return;
+  const ok = what==='cal' ? apptCal(i, k) : apptSms(i, k);
+  const b = document.getElementById(what==='cal' ? 'a_cal' : 'a_sms');
+  if(ok && b) b.textContent = (what==='cal' ? '캘린더' : '문자') + ' ✓';
+}
+// 1.15.x 까지 캘린더에서 돌아오면 묻던 '약속 문자도 보낼까요?'는 없앰 (1.16.0) — 남아 있는 예전 표시만 지운다
+function checkAfterCal(){ try{ localStorage.removeItem('afterCal'); }catch(e){} }
+function apptCal(i, k){
   const c = customers[i], r = recsOf(c)[k]; if(!r) return false;
   const begin = new Date(`${r.date}T${r.time}`).getTime();
   // 캘린더: 위치 칸 = 장소명(없으면 링크), 설명 = 연락처 · 구분 · 링크 · 메모
@@ -590,6 +604,7 @@ function apptSms(i, k){
   const text = r.msg || apptText(c, r);   // 약속 화면에서 고친 문자 (1.6.0 전 기록은 기본 문구로)
   const ok = window.Android ? Android.openSms(c.phone, text) : (toast(text), true);
   if(!ok) toast('문자 앱을 열지 못했습니다');
+  return ok;
 }
 // 알림을 눌러 앱이 열리면 그 고객 화면으로
 window.openByPhone = function(phone){

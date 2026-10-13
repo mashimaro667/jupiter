@@ -1,5 +1,5 @@
 // 주피터 웹판: 인터넷이 없어도 열리게 화면 파일을 보관한다. 인터넷이 되면 늘 새 판을 먼저 받는다 (새 판이 바로 반영되게)
-const CACHE = 'jupiter-1.15.1';
+const CACHE = 'jupiter-1.16.0';
 const FILES = ['./', 'index.html', 'web.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'form.xlsx', 'logo.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
