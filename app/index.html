@@ -14,7 +14,7 @@
 <meta name="theme-color" content="#0b1026">
 <meta name="format-detection" content="telephone=no">
 <meta name="robots" content="noindex, nofollow">
-<script src="web.js?v=1.14.1"></script>
+<script src="web.js?v=1.15.0"></script>
 <style>
 /* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
 :root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
@@ -119,8 +119,8 @@ ul.names li .st{font-size:15px}
 .tabs button{border:0;background:none;color:var(--sub);font-size:17px;font-weight:700;padding:12px 0;margin-bottom:-2px;border-bottom:3px solid transparent}
 .tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .chips button{border:1px solid var(--line);background:var(--card);color:var(--link);border-radius:999px;padding:6px 12px;font-size:14px}
-/* 연락처 이름 양식: 여섯 칸 가로 나열 (1.5.2). 화면이 좁으면 옆으로 밀어 봄 */
-.cfstrip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px}
+/* 연락처 이름 양식: 일곱 칸 가로 나열 (1.5.2, 1.15.0부터 일곱 칸). 화면이 좁으면 옆으로 밀어 봄 */
+.cfstrip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
 .cfslot{display:flex;flex-direction:column;gap:5px;min-width:0}
 .cfslot span{text-align:center;color:var(--sub);font-size:14px}
 .cfslot button{min-height:54px;padding:6px 2px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font-size:13px;line-height:1.3;word-break:keep-all;overflow-wrap:anywhere}
@@ -602,11 +602,18 @@ function recMark(c){ if(pendingRemind(c)) return '⏰'; const r = recsOf(c).slic
 // 연락처 이름 양식 (1.5.0, 2026-10-11 지시): 자동 = 🏢D/이름/85/불로동/이관 (예전 방식)
 // 수동 = 여섯 칸마다 없음·이모지·등급(A~E)·이름·생년·주소(지역)·이관/밸류업 중 하나를 고른다. 칸 사이는 '/', 이모지는 앞뒤에 '/' 없이 붙인다
 // 1.5.1: A~E는 '등급' 하나로 묶고, 등급을 고르면 옆에서 A~E를 고른다 (칸 값은 그대로 'A'~'E'로 저장)
-const CF_OPTS = [['none','없음'],['emoji','이모지🏢'],['grade','등급'],['name','이름'],['year','생년(88)'],['region','주소'],['kind','이관/밸류업']];   // 1.5.2 가로 나열이라 짧게
+// 1.15.0 (2026-10-13 지시): 일곱째 칸 + '날짜' — 유입월을 년/월만 괄호에 (26.10). 앞 칸에 '/' 없이 붙인다
+const CF_OPTS = [['none','없음'],['emoji','이모지🏢'],['grade','등급'],['name','이름'],['year','생년(88)'],['region','주소'],['kind','이관/밸류업'],['date','날짜(26.10)']];   // 1.5.2 가로 나열이라 짧게
 const GRADES = ['A','B','C','D','E'];
 const CF_AUTO = ['emoji','D','name','year','region','kind'];
-let contactFmt = (()=>{ const f = load('contactFmt', {}); return {mode: f.mode==='manual' ? 'manual' : 'auto', slots: Array.isArray(f.slots) && f.slots.length===6 ? f.slots : [...CF_AUTO]}; })();
+const CF_N = 7, CF_NUM = '①②③④⑤⑥⑦';
+let contactFmt = (()=>{ const f = load('contactFmt', {});
+  let s = Array.isArray(f.slots) && f.slots.length>=6 ? f.slots.slice(0, CF_N) : [...CF_AUTO];
+  if(s.length < CF_N) s = s.concat('date');   // 예전 여섯 칸 양식은 ⑦에 날짜를 더해 둔다
+  return {mode: f.mode==='manual' ? 'manual' : 'auto', slots: s}; })();
+function cfDate(c){ const x = String(monthOf(c)||'').match(/^\d{2}(\d{2})-(\d{1,2})$/); return x ? `(${x[1]}.${x[2].padStart(2,'0')})` : ''; }
 function cfPart(k, c){
+  if(k==='date') return cfDate(c);
   if(k==='emoji') return '🏢';
   if(/^[A-E]$/.test(k)) return k;
   if(k==='name') return c.name || '';
@@ -617,13 +624,13 @@ function cfPart(k, c){
 }
 function buildContactName(slots, c){
   let s = '', glue = true;   // glue: 바로 앞이 이모지(또는 맨 앞)라 '/' 없이 붙인다
-  for(const k of slots){ const v = cfPart(k, c); if(!v) continue; const em = k==='emoji'; s += (!glue && !em ? '/' : '') + v; glue = em; }
+  for(const k of slots){ const v = cfPart(k, c); if(!v) continue; const em = k==='emoji', dt = k==='date'; s += (!glue && !em && !dt ? '/' : '') + v; glue = em; }
   return s || c.name;
 }
 function contactName(c){ return buildContactName(contactFmt.mode==='manual' ? contactFmt.slots : CF_AUTO, c); }
-// 양식 고르는 화면: 자동 / 수동(여섯 칸을 가로로 나열), 아래에 미리보기
+// 양식 고르는 화면: 자동 / 수동(일곱 칸을 가로로 나열), 아래에 미리보기
 // 미리보기는 늘 같은 예시 (1.5.2, 2026-10-11 지정: 김주성 · 88 · 논현동 · 이관)
-const CF_SAMPLE = {name:'김주성', year:'1988', region:'논현동', kind:'tr'};
+const CF_SAMPLE = {name:'김주성', year:'1988', region:'논현동', kind:'tr', month:'2026-10'};
 function contactFmtForm(i){
   const c = CF_SAMPLE;
   curRoute = ['contactFmt', customers[i] ? customers[i].phone : ''];
@@ -638,25 +645,25 @@ function drawCf(){
       <button class="btn seg${auto?' on':''}" onclick="window._cf.mode='auto';drawCf()">자동</button>
       <button class="btn seg${auto?'':' on'}" onclick="window._cf.mode='manual';drawCf()">수동</button></div>
     ${auto ? `<p class="note">지금 방식: 이모지 🏢 · 등급 D · 이름 · 생년 · 주소(지역) · 이관/밸류업</p>`
-      : `<label>칸 고르기 <span class="meta" style="font-weight:400">(① → ⑥ 순서로 이어짐)</span></label>
+      : `<label>칸 고르기 <span class="meta" style="font-weight:400">(① → ⑦ 순서로 이어짐)</span></label>
          <div class="cfstrip">${f.slots.map((k,n)=>{ const g = GRADES.includes(k), opt = CF_OPTS.find(([v])=>v===(g?'grade':k));
-          return `<div class="cfslot"><span>${'①②③④⑤⑥'[n]}</span>
+          return `<div class="cfslot"><span>${CF_NUM[n]}</span>
           <button class="${k==='none'?'off':''}" onclick="cfPick(${n})">${esc(opt ? opt[1] : '없음')}</button>
           ${g ? `<button class="grade" onclick="cfGrade(${n})">${k}</button>` : ''}</div>`; }).join('')}</div>
          <p class="note" style="margin-top:4px">칸을 누르면 넣을 것을 고릅니다. 등급은 아래 글자를 눌러 A~E를 고릅니다.</p>`}
-    <div class="card" style="margin-top:14px"><div class="meta" style="margin-bottom:6px">미리보기 (예: 김주성 · 88년생 · 논현동 · 이관)</div><div id="cf_prev" style="font-size:18px;font-weight:700"></div></div>
+    <div class="card" style="margin-top:14px"><div class="meta" style="margin-bottom:6px">미리보기 (예: 김주성 · 88년생 · 논현동 · 이관 · 2026년 10월)</div><div id="cf_prev" style="font-size:18px;font-weight:700"></div></div>
     <button class="btn primary" style="width:100%" onclick="saveCf()">저장</button>
-    <p class="note">칸 사이는 '/'로 나뉘고, 이모지는 '/' 없이 바로 붙습니다. 빈 칸(생년·지역이 없는 고객 등)은 건너뜁니다.</p>`;
+    <p class="note">칸 사이는 '/'로 나뉘고, 이모지와 날짜는 '/' 없이 바로 붙습니다. 날짜는 그 고객의 월(이관 대상월·밸류업 유입월)을 (26.10)처럼 넣습니다. 빈 칸(생년·지역이 없는 고객 등)은 건너뜁니다.</p>`;
   cfPreview();
 }
 // 칸 누르기 → 넣을 것 고르는 창. '등급'을 고르면 이어서 A~E를 고른다 (지금 값은 진하게)
 function cfPick(n){
   const cur = window._cf.slots[n], key = GRADES.includes(cur) ? 'grade' : cur;
-  ask(`${'①②③④⑤⑥'[n]} 칸에 넣을 것`, CF_OPTS.map(([v,t])=>[t, ()=> v==='grade' ? cfGrade(n) : cfSet(n, v), v===key]).concat([['취소']]));
+  ask(`${CF_NUM[n]} 칸에 넣을 것`, CF_OPTS.map(([v,t])=>[t, ()=> v==='grade' ? cfGrade(n) : cfSet(n, v), v===key]).concat([['취소']]));
 }
 function cfGrade(n){
   const cur = window._cf.slots[n];
-  ask(`${'①②③④⑤⑥'[n]} 칸 등급`, GRADES.map(x=>[x, ()=>cfSet(n, x), x===cur]).concat([['취소']]));
+  ask(`${CF_NUM[n]} 칸 등급`, GRADES.map(x=>[x, ()=>cfSet(n, x), x===cur]).concat([['취소']]));
 }
 function cfSet(n, v){ window._cf.slots[n] = v; drawCf(); }
 function cfPreview(){ const f = window._cf; document.getElementById('cf_prev').textContent = buildContactName(f.mode==='manual' ? f.slots : CF_AUTO, window._cfC); }
