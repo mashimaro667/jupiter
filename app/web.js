@@ -6,7 +6,7 @@
 //  - 연락처 저장: 연락처 파일(.vcf) → [새로운 연락처 생성]
 // 자료(명단·기록·문구)는 이 휴대폰 브라우저 저장소에만 있다
 (function(){
-  const VERSION = '1.16.0';
+  const VERSION = '2.0.8';
   const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
   const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const say = t => window.toast ? toast(t) : alert(t);
@@ -17,6 +17,12 @@
   function calendar(title, begin, end, place, desc){
     const q = new URLSearchParams({action:'TEMPLATE', text:title, dates:utc(begin)+'/'+utc(end), details:desc||'', location:place||''});
     return openOut('https://calendar.google.com/calendar/render?' + q);
+  }
+
+  // 연락처 카드 한 장 (.vcf). 여러 장은 이어 붙이면 한 파일
+  function vcard(name, phone, notes){
+    const e = s => String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
+    return ['BEGIN:VCARD','VERSION:3.0','N:;'+e(name)+';;;','FN:'+e(name),'TEL;TYPE=CELL:'+phone, notes?'NOTE:'+e(notes):'','END:VCARD'].filter(Boolean).join('\r\n');
   }
 
   // ---------- 파일 열기 (연락처 .vcf) ----------
@@ -136,10 +142,13 @@
       return true;
     },
     openDial(phone){ location.href = 'tel:' + phone; return true; },
-    openContact(name, phone, notes){
-      const e = s => String(s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n');
-      const v = ['BEGIN:VCARD','VERSION:3.0','N:;'+e(name)+';;;','FN:'+e(name),'TEL;TYPE=CELL:'+phone, notes?'NOTE:'+e(notes):'','END:VCARD'].filter(Boolean).join('\r\n');
-      return openFile('contact.vcf', 'text/vcard', v);
+    openContact(name, phone, notes){ return openFile('contact.vcf', 'text/vcard', vcard(name, phone, notes)); },
+    // 연락처 한꺼번에 저장 (2.0.8, 웹판): 목록을 연락처 파일 하나(.vcf, 여러 명)로 묶어 연다 → 아이폰 [모든 연락처 추가]
+    // 웹은 휴대폰 연락처를 읽을 수 없어 같은 번호를 거르지 못한다. 저장했는지는 화면이 물어본다 (onContactsSaved {web:true})
+    saveContacts(json){
+      const list = JSON.parse(json);
+      openFile('contacts.vcf', 'text/vcard', list.map(c => vcard(c.name, c.phone, c.note)).join('\r\n'));
+      setTimeout(() => window.onContactsSaved && window.onContactsSaved({web:true}), 1500);
     },
     // 부재중 다시 전화: 그 시각의 구글 캘린더 일정(15분)으로
     setAlarm(id, when, title, text, phone){
