@@ -14,7 +14,7 @@
 <meta name="theme-color" content="#0b1026">
 <meta name="format-detection" content="telephone=no">
 <meta name="robots" content="noindex, nofollow">
-<script src="web.js?v=2.0.8"></script>
+<script src="web.js?v=2.3.0"></script>
 <style>
 /* 화면 모드: html 의 data-theme (light/dark) 로 바꾼다. 자동이면 휴대폰 설정을 따른다 (applyTheme) */
 :root{--bg:#f4f5f8;--card:#fff;--text:#1d2230;--sub:#6b7280;--line:#e5e7eb;--accent:#3b4a8c;--link:#3b4a8c;--accent2:#c08a2e;--ok:#1f8a4c;--tr:#3b4a8c;--vu:#b2721f;--rc:#2a8a74;--call:#2e9d5b;--miss:#c4483b;color-scheme:light}
@@ -135,6 +135,10 @@ ul.names li .st{font-size:15px}
 .startcards .kind{text-align:center;padding:22px 8px;font-size:20px}
 .startcards .kind b{display:block;font-size:20px;font-weight:400;margin-bottom:6px}
 .kind.cs{border-top:5px solid var(--accent2)} .kind.cm{border-top:5px solid var(--tr)}
+/* 광고DB (2.1.0): 첫 화면 세 카드 · 보장분석 / 리쿠르팅 */
+/* 2.2.0: 한 줄에 두 개까지 — 고객관리 · 광고DB / 연락처 저장 (지시) */
+.kind.ad{border-top:5px solid var(--miss)} .kind.ba{border-top:5px solid var(--vu)}
+.tag.ad{background:var(--miss)}
 /* 연락처 저장 (2.0.0, 헤라 합침): 미리보기 · 이모지 고르기 칸 · 등급 A~E · 이모지 목록 창 */
 .in{margin:0;min-width:0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -189,7 +193,9 @@ const DEFAULT_TPL = {
   tr:  {hon:'님', head:'안녕하세요.', body:'(이관고객님께 드릴 내용을 [문자 문구]에서 적어 주세요)', tail:'', appt:'{날짜} {시간}에 {장소}에서 뵙겠습니다.'},
   vu:  {hon:'님', head:'안녕하세요.', body:'(밸류업 고객님께 드릴 내용을 [문자 문구]에서 적어 주세요)', tail:'', appt:'{날짜} {시간}에 {장소}에서 뵙겠습니다.'},
   rc:  {hon:'님', head:'안녕하세요.', body:'(리쿠르팅 대상께 드릴 내용을 [문자 문구]에서 적어 주세요)', tail:'', appt:'{날짜} {시간}에 {면접관}과 면접이 있습니다.'},
-  appt:{hon:'님', head:'안녕하세요.', body:'{날짜} {시간}에 {장소}에서 뵙겠습니다.', tail:'감사합니다.'}};
+  appt:{hon:'님', head:'안녕하세요.', body:'{날짜} {시간}에 {장소}에서 뵙겠습니다.', tail:'감사합니다.'},
+  // 광고DB 보장분석 신청자 (2.2.0, 2026-10-22 지정 문구). 약속안내 탭 없음
+  ba:  {hon:'님', head:'', body:'', tail:'', appt:''}};
 // 예전 저장분을 새 형식으로: 1.2.x '{이름}님, …' / 1.3.x 호칭 + ', …' → 첫 줄은 머리말, 나머지는 본문
 function upgradeLetters(l){
   if(l.v===3 && l.tpl) return l;
@@ -248,6 +254,9 @@ function routeFn(r){
   if(v==='cs') return csHome;
   if(v==='csorder') return csOrderForm;
   if(v==='home') return home;
+  if(v==='ad') return adHome;
+  if(v==='adlist' && AD_KINDS[a]) return ()=>adList(a);
+  if(v==='addetail' && AD_KINDS[a]){ const i = (adLeads[a]||[]).findIndex(x=>x.id===b); if(i>=0) return ()=>adDetail(a, i); }
   if(v==='list' && KINDS[a]) return ()=>list(a);
   if(v==='month' && KINDS[a]) return ()=>month(a, b ?? null);
   if(v==='letters') return editLetters;
@@ -302,11 +311,148 @@ function start(){
   curRoute = ['start'];
   $v().innerHTML = `
     <div class="startcards">
-      <button class="kind cs" onclick="show(csHome)"><b>📇</b>연락처 저장</button>
       <button class="kind cm" onclick="show(home)"><b>👥</b>고객관리</button>
+      ${window.noAd ? '' : `<button class="kind ad" onclick="show(adHome)"><b>📣</b>광고DB</button>`}
+      <button class="kind cs" onclick="show(csHome)"><b>📇</b>연락처 저장</button>
     </div>
     ${window.webExtra ? webExtra('home') : ''}`;   // 웹판(아이폰)에서만: 홈 화면 추가 안내 (web.js)
 }
+
+// ---------- 광고DB (2.1.0, 2026-10-22 지시): 보장분석 / 리쿠르팅 ----------
+// - 시트는 '링크가 있는 누구나 보기'라 로그인 없이 CSV로 읽는다 (앱은 Android.fetchText, 웹판은 fetch)
+// - 저장: adLeads = {ba:[{id, at, name, phone, email, field, time, status, got}], rc:[]} — id(l:…)로 새 사람만 더하고, 시트에서 지워져도 남긴다
+// - 메타 '테스트 리드'(<test lead: …>)는 건너뛴다. 리쿠르팅은 아직 연결한 시트가 없다
+const AD_SHEETS = {};
+const AD_KINDS = {ba:'보장분석', rc:'리쿠르팅'};
+let adLeads = load('adLeads', {ba:[], rc:[]});
+// 새 신청 알림 (2.1.1, 2026-10-22 지시: '새로운 정보가 입력되면 앱에서 새롭게 추가된 게 있다고 알림 오면서 알아서 입력되게')
+// - 앱이 꺼져 있어도 15분마다 앱(AdWatch.java)이 시트를 보고, 처음 보는 신청자가 있으면 휴대폰 알림 → 누르면 보장분석 목록(openAd)
+// - 앱을 켤 때·다른 앱에서 돌아올 때(1분 넘게 지났으면)·목록을 열 때 시트를 다시 불러와 저장 (알아서 입력)
+// - 새로 들어온 사람은 목록에 🆕 (fresh) — 그 사람 화면을 열면 지움
+const adUrl = k => { const s = AD_SHEETS[k]; return s ? `https://docs.google.com/spreadsheets/d/${s.id}/gviz/tq?tqx=out:csv&gid=${s.gid}` : ''; };
+function adSync(ask){   // 앱에 있는 id(뺀 사람 포함)를 알려 주고 15분 확인을 건다
+  if(!(window.Android && Android.adWatch)) return;
+  Android.adWatch(adUrl('ba'), JSON.stringify([...(adLeads.ba||[]).map(x=>x.id), ...(adLeads.gone||[])]), !!ask);
+}
+const adFresh = k => (adLeads[k]||[]).filter(x=>x.fresh).length;
+function adHome(){
+  setTitle('광고DB');
+  curRoute = ['ad'];
+  if(!load('adAsked', false)){ save('adAsked', true); adSync(true); }   // 처음 한 번 알림 허용 창
+  const n = k => (adLeads[k]||[]).length + '명' + (adFresh(k) ? ` · 🆕 ${adFresh(k)}` : '');
+  $v().innerHTML = `
+    <div class="kinds home">
+      <button class="kind ba" onclick="show(()=>adList('ba'))">보장분석<small>${n('ba')}</small></button>
+      <button class="kind rc" onclick="show(()=>adList('rc'))">리쿠르팅<small>${n('rc')}</small></button>
+    </div>
+    <p class="note">보장분석은 메타 광고로 상담을 신청한 분들입니다. 시트에 새 신청이 들어오면 휴대폰 알림이 오고(15분마다 확인, 절전 중에는 늦을 수 있음), 앱을 열면 저절로 저장됩니다.</p>`;
+}
+window.openAd = function(k){ if(!AD_KINDS[k]) return; stack.length = 0; stack.push(start); start._route = ['start']; show(adHome); show(()=>adList(k)); adPull(k, true); };
+window.onResumeApp = function(){ if(Date.now() - (window._adAt||0) > 60000) adPull('ba', true); };
+function adList(k){
+  setTitle(AD_KINDS[k] || '광고DB');
+  curRoute = ['adlist', k];
+  const rows = (adLeads[k]||[]).map((x,i)=>({x,i})).sort((a,b)=>String(b.x.at).localeCompare(String(a.x.at)));
+  $v().innerHTML = `
+    ${AD_SHEETS[k] ? `<button class="btn primary" style="width:100%" onclick="adPull('${k}')">🔄 시트에서 불러오기</button>` : ''}
+    <ul class="names" id="names" style="margin-top:12px">${rows.length ? rows.map(({x,i})=>`
+      <li onclick="show(()=>adDetail('${k}',${i}))"><span class="nm">${x.fresh?'🆕 ':''}${esc(x.name||'(이름 없음)')}${x.field?`<span class="info"> / ${esc(x.field)}</span>`:''}
+        <span class="sub">${esc(adWhen(x.at))}${x.time?' · '+esc(x.time):''}</span></span>
+        ${x.sent?`<span class="sent">✓ ${esc(x.sent.slice(5,10).replace('-','/'))}</span>`:''}
+        <span class="tail">${esc(String(x.phone||'').slice(-4))}</span></li>`).join('')
+      : `<li class="empty">${AD_SHEETS[k] ? '아직 불러온 신청자가 없습니다.' : '아직 연결된 광고 시트가 없습니다.'}</li>`}</ul>
+    ${window._adMsg && window._adMsg[0]===k ? `<p class="note">${esc(window._adMsg[1])}</p>` : ''}`;
+  if(AD_SHEETS[k] && Date.now() - (window._adAt||0) > 60000) adPull(k, true);   // 1분 넘게 지났으면 열 때 저절로
+}
+function adWhen(s){ const d = new Date(s); return isNaN(d) ? String(s||'') : `${d.getMonth()+1}/${d.getDate()} ${z2(d.getHours())}:${z2(d.getMinutes())} 신청`; }
+function adPull(k, quiet){
+  const s = AD_SHEETS[k]; if(!s || window.noAd) return;   // 웹판은 광고DB 없음 (2026-10-24 지시, web.js noAd)
+  const url = `${adUrl(k)}&t=${Date.now()}`;
+  window._adAt = Date.now();
+  if(!quiet) toast('시트에서 불러오는 중…');
+  window['_adGot_'+k] = text => adMerge(k, text, quiet);
+  if(window.Android && Android.fetchText) Android.fetchText(url, '_adGot_'+k);
+  else fetch(url).then(r=>r.ok ? r.text() : Promise.reject()).then(t=>adMerge(k, t, quiet)).catch(()=>adMerge(k, null, quiet));
+}
+// quiet(저절로 불러온 때)는 새 사람이 있을 때만 알리고, 못 불러와도 조용히 넘어간다
+function adMerge(k, text, quiet){
+  if(text==null){ if(!quiet) toast('시트를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요'); return; }
+  const rows = parseCsv(text); const head = (rows.shift()||[]).map(h=>String(h).trim());
+  const col = name => head.indexOf(name), get = (r, name) => col(name)>=0 ? String(r[col(name)]||'').trim() : '';
+  const tidy = v => v.replace(/_/g,' ').replace(/\s+/g,' ').trim();   // 메타 양식 값은 띄어쓰기가 _ (상속_/_가족보호)
+  if(col('id')<0 || col('이름')<0){ toast('시트 모양이 달라 읽지 못했습니다 (id·이름 칸)'); return; }
+  const list = adLeads[k] = adLeads[k] || [];
+  const have = new Set([...list.map(x=>x.id), ...(adLeads.gone||[])]);   // [목록에서 빼기] 한 사람은 다시 넣지 않는다
+  let added = 0;
+  for(const r of rows){
+    const id = get(r,'id'); if(!id || have.has(id)) continue;
+    if(/<test lead/i.test(get(r,'이름'))) continue;   // 메타 테스트 리드
+    list.push({id, at:get(r,'created_time'), name:get(r,'이름'), phone:normPhone(get(r,'전화번호')), email:get(r,'이메일'),
+      field:tidy(get(r,'관심_분야')), time:tidy(get(r,'상담_희망_시간대')), status:get(r,'lead_status'), got:now(), fresh:true});
+    have.add(id); added++;
+  }
+  save('adLeads', adLeads);
+  if(k==='ba') adSync();   // 앱에 들어온 사람은 알림 확인에서도 '본 사람'으로
+  window._adMsg = [k, `마지막으로 불러온 때: ${now()} · 새로 ${added}명 · 모두 ${list.length}명`];
+  if(added || !quiet) toast(added ? `광고DB 새 신청자 ${added}명을 저장했습니다` : '새 신청자가 없습니다');
+  const r = curRoute || [];
+  if(r[0]==='adlist' && r[1]===k) adList(k); else if(r[0]==='ad') adHome();
+}
+// 따옴표·줄바꿈이 든 칸도 읽는 CSV 나누기
+function parseCsv(t){
+  const out = []; let row = [], f = '', q = false;
+  t = String(t).replace(/^﻿/, '');
+  for(let i=0; i<t.length; i++){
+    const ch = t[i];
+    if(q){ if(ch==='"'){ if(t[i+1]==='"'){ f+='"'; i++; } else q = false; } else f += ch; continue; }
+    if(ch==='"') q = true; else if(ch===','){ row.push(f); f=''; }
+    else if(ch==='\n' || ch==='\r'){ if(ch==='\r' && t[i+1]==='\n') i++; row.push(f); out.push(row); row=[]; f=''; }
+    else f += ch;
+  }
+  if(f || row.length){ row.push(f); out.push(row); }
+  return out.filter(r=>r.some(v=>String(v).trim()));
+}
+function adDetail(k, i){
+  const x = (adLeads[k]||[])[i]; if(!x){ goBack(); return; }
+  curRoute = ['addetail', k, x.id];
+  if(x.fresh){ delete x.fresh; save('adLeads', adLeads); }   // 열어 본 사람은 🆕 지움
+  setTitle(x.name || AD_KINDS[k]);
+  $v().innerHTML = `
+    <div class="card"><h2>${esc(x.name)}<span class="tag ad">${AD_KINDS[k]}</span></h2>
+      <div class="meta">${esc(fmtPhone(x.phone))}${x.email?' · '+esc(x.email):''}</div>
+      ${x.field?`<div class="meta">관심 분야: ${esc(x.field)}</div>`:''}
+      ${x.time?`<div class="meta">상담 희망: ${esc(x.time)}</div>`:''}
+      <div class="meta">${esc(adWhen(x.at))}</div></div>
+    <div class="card"><div class="meta" style="margin-bottom:8px">보낼 문자</div><div class="preview">${esc(adText(k, x))}</div></div>
+    <div class="row"><button class="btn primary" onclick="adSms('${k}',${i})">문자 보내기</button>
+      <button class="btn primary call" onclick="adCall('${k}',${i})">전화 걸기</button></div>
+    <button class="btn" style="width:100%;margin-top:10px;font-weight:700" onclick="adContact('${k}',${i})">연락처 저장</button>
+    <div class="meta" style="margin-top:6px;text-align:center">${esc(contactName(adCust(k, x)))} · <a href="#" style="color:var(--link)" onclick="show(()=>contactFmtForm(null));return false">양식 ${contactFmt.mode==='manual'?'수동':'자동'} ›</a></div>
+    <div class="row"><button class="btn" onclick="show(()=>editTpl('${adTplKey(k)}'))">문자 문구 고치기</button>
+      <button class="btn" onclick="adDel('${k}',${i})">목록에서 빼기</button></div>
+    <p class="note">[연락처 저장]은 고객관리와 같은 연락처 이름 양식(이모지·이름·신청월·구분 '보장분석')으로 새 연락처 화면을 채워 엽니다.</p>`;
+}
+const adLead = (k, i) => (adLeads[k]||[])[i] || {};
+// 2.2.0 (2026-10-22 지시: '번호 저장은 기존 고객관리랑 같은 스타일로'): 신청자를 고객 모양으로 바꿔 연락처 이름 양식(contactName)을 그대로 쓴다
+// 신청월(유입월) = 신청 시각의 년-월, 구분 = 보장분석 (cfPart kind)
+function adCust(k, x){ const d = new Date(x.at); return {kind:k==='ba' ? 'ba' : 'rc', name:x.name, phone:x.phone, month:isNaN(d) ? '' : d.getFullYear()+'-'+z2(d.getMonth()+1)}; }
+const adTplKey = k => k==='ba' ? 'ba' : 'rc';   // 보장분석 문구는 [문자 문구] > 보장분석
+function adText(k, x){ return withRcHead(adTplKey(k), composeText(adTplKey(k), x.name || '고객')); }
+function adCall(k, i){ const x = adLead(k,i); if(window.Android) Android.openDial(x.phone); else location.href = 'tel:' + x.phone; }
+function adSms(k, i){
+  const x = adLead(k,i), t = adText(k, x);
+  if(window.Android){ if(!Android.openSms(x.phone, t)){ toast('문자 앱을 열지 못했습니다'); return; } }
+  else location.href = 'sms:' + x.phone + '?&body=' + encodeURIComponent(t);
+  x.sent = now(); save('adLeads', adLeads);   // 목록에 ✓ 보낸 날
+}
+function adContact(k, i){
+  const x = adLead(k,i), c = adCust(k, x);
+  const notes = [contactNotes(c), x.field?`관심 분야: ${x.field}`:'', x.time?`상담 희망: ${x.time}`:'', x.email?`이메일: ${x.email}`:''].filter(Boolean).join('\n');
+  const ok = window.Android ? Android.openContact(contactName(c), fmtPhone(x.phone), notes) : (toast(contactName(c)), true);
+  if(!ok) toast('연락처 앱을 열지 못했습니다');
+}
+function adDel(k, i){ const x = adLead(k,i); ask(`'${x.name}'을 광고DB 목록에서 뺄까요? (시트에서 다시 불러와도 들어오지 않습니다)`, [['빼기',()=>{
+  (adLeads.gone = adLeads.gone || []).push(x.id); adLeads[k].splice(i,1); save('adLeads', adLeads); goBack(); },true],['취소']]); }
 
 // ---------- 연락처 저장 (2.0.0, 헤라 1.1.0을 합침) ----------
 // 연락처 이름 = 이모지 + 등급(A~E) / 이름 / 생년 / 지역 / 기타 — 이모지·등급은 붙이고 나머지는 '/' (빈 칸 건너뜀). 예: 🏢D/김주성/88/논현동/밸류업
@@ -428,7 +574,7 @@ function home(){
   const n = k => customers.filter(c=>c.kind===k).length;
   $v().innerHTML = `
     <div class="mefield">${meField('name','내 이름')}${meField('title','내 직책')}</div>
-    <div class="kinds home three" style="margin-top:14px">
+    <div class="kinds home" style="margin-top:14px">   <!-- 2.3.0: 한 줄에 두 개 — 이관고객 · 밸류업 / 리쿠르팅 (지시) -->
       <button class="kind tr" onclick="show(()=>list('tr'))">이관고객<small>${n('tr')}명</small></button>
       <button class="kind vu" onclick="show(()=>list('vu'))">밸류업<small>${n('vu')}명</small></button>
       <button class="kind rc" onclick="show(()=>list('rc'))">리쿠르팅<small>${n('rc')}명</small></button>
@@ -757,7 +903,7 @@ function apptForm(i, fresh, iv){
     <div class="rec3" style="margin-top:10px"><button class="btn appt" onclick="saveAppt(${i})">저장</button>
       <button class="btn done" id="a_cal" onclick="apptStep(${i},'cal')">캘린더</button>
       <button class="btn miss" id="a_sms" onclick="apptStep(${i},'sms')">문자</button></div>
-    <p class="note">[저장]은 약속만 기록하고 고객 화면으로 돌아갑니다. [캘린더]·[문자]는 약속을 기록하고 각각 구글 캘린더 새 일정·문자 앱을 엽니다. 다녀오면 이 화면 그대로라 남은 버튼을 이어서 누르면 됩니다.</p>`;
+    <p class="note">[저장]은 약속만 기록하고 고객 화면으로 돌아갑니다. [캘린더]는 구글 캘린더 새 일정을 엽니다. 구글에서 저장하고 주피터로 돌아오면 '내 이름/고객 이름/지역/AP'(리쿠르팅은 OT)를 복사해 두고 타임트리를 엽니다. 타임트리 새 일정 제목에 붙여 넣고 저장해 주세요. [문자]는 문자 앱을 엽니다.</p>`;
   window._apptDirty = false; window._apptK = -1;
   apptPreview(i);
   // 캘린더·문자에 다녀오는 사이 휴대폰이 앱을 정리해 이 화면이 다시 열리면, 적어 둔 약속을 그대로 채워 같은 기록을 이어 쓴다 (1.16.0)
@@ -821,9 +967,14 @@ function apptCal(i, k){
   // 캘린더: 위치 칸 = 장소명(없으면 링크), 설명 = 연락처 · 구분 · 링크 · 메모
   const desc = [fmtPhone(c.phone), [KINDS[c.kind], info(c)].filter(Boolean).join(' · '), r.link?'위치: '+r.link:'', r.memo].filter(Boolean).join('\n');
   const title = IV[r.iv] ? `${c.name} ${IV[r.iv].label} (${IV[r.iv].who})` : `${c.name} 고객 상담`;   // 2.0.3: 리쿠르팅은 'CIS (부지점장님)'
-  const ok = window.Android ? Android.openCalendar(title, begin, begin + 3600000, r.place || r.link || '', desc) : false;
-  if(!ok) toast('캘린더 앱을 열지 못했습니다');
-  return ok;
+  // 2.0.11 타임트리에 붙여 넣을 글: 내 이름 / 고객 이름 / 지역(동) / AP — 빈 칸은 건너뜀. 2.0.12 리쿠르팅은 AP 대신 OT
+  const tt = [me.name, c.name, c.region, c.kind==='rc' ? 'OT' : 'AP'].filter(Boolean).join('/');
+  const ok = window.Android ? Android.openCalendar(title, begin, begin + 3600000, r.place || r.link || '', desc, tt) : false;
+  if(!ok){ toast('캘린더를 열지 못했습니다'); return false; }
+  if(window.webExtra) toast(`'${tt}' 복사됨 · 구글에서 저장하고 돌아오면 타임트리를 엽니다`);   // 웹판: 누를 때 복사 (web.js)
+  else if(window.Android && Android.hasTimeTree && !Android.hasTimeTree()) toast('타임트리가 없어 구글 캘린더만 엽니다');
+  else toast('구글에서 저장하고 돌아오면 타임트리가 열립니다');
+  return true;
 }
 function apptSms(i, k){
   const c = customers[i], r = recsOf(c)[k]; if(!r) return;
@@ -860,7 +1011,7 @@ function cfPart(k, c){
   if(k==='name') return c.name || '';
   if(k==='year') return c.year ? String(c.year).slice(2) : '';
   if(k==='region') return c.region || '';
-  if(k==='kind') return c.kind==='tr' ? '이관' : c.kind==='rc' ? (groupOf(c) || '리쿠르팅') : '밸류업';   // 2.0.1: 리쿠르팅은 분류(리쿠/DB/상생/잡사/직접 입력)
+  if(k==='kind') return c.kind==='ba' ? '보장분석' : c.kind==='tr' ? '이관' : c.kind==='rc' ? (groupOf(c) || '리쿠르팅') : '밸류업';   // 2.0.1: 리쿠르팅은 분류(리쿠/DB/상생/잡사/직접 입력)
   return '';
 }
 function buildContactName(slots, c){
@@ -911,7 +1062,7 @@ function cfPreview(){ const f = window._cf; document.getElementById('cf_prev').t
 function saveCf(){ contactFmt = {mode:window._cf.mode, slots:[...window._cf.slots]}; save('contactFmt', contactFmt); toast('연락처 이름 양식을 저장했습니다'); goBack(); }
 function contactNotes(c){
   const x = String(monthOf(c)).match(/^(\d{4})-(\d{1,2})$/);
-  return [x?`유입월: ${x[1]}년 ${+x[2]}월`:'', c.kind!=='rc' && groupOf(c)?`구분: ${groupOf(c)}`:'', c.kind==='rc'?'구분: 리쿠르팅':''].filter(Boolean).join('\n');
+  return [x?`유입월: ${x[1]}년 ${+x[2]}월`:'', c.kind!=='rc' && groupOf(c)?`구분: ${groupOf(c)}`:'', c.kind==='rc'?'구분: 리쿠르팅':'', c.kind==='ba'?'구분: 광고DB 보장분석':''].filter(Boolean).join('\n');
 }
 function saveContact(i){
   const c = customers[i];
@@ -937,7 +1088,7 @@ function removeCustomer(i){
 }
 
 // ---------- 문자 문구 (1.4.0): 이관고객 / 밸류업(기본 + 분류별) → 호칭 · 머리말 · 본문 · 마무리 (+ 1.7.0 약속 칸) ----------
-function tplTitle(key){ return key==='tr' ? '이관고객 문자' : key==='rc' ? '리쿠르팅 문자' : key==='appt' ? '약속 문자' : key==='vu' ? '밸류업 기본 문자' : '밸류업 · ' + key.slice(3); }
+function tplTitle(key){ return key==='tr' ? '이관고객 문자' : key==='rc' ? '리쿠르팅 문자' : key==='ba' ? '보장분석 문자 (광고DB)' : key==='appt' ? '약속 문자' : key==='vu' ? '밸류업 기본 문자' : '밸류업 · ' + key.slice(3); }
 const firstLine = key => composeText(key, '김주성').split('\n')[0];
 function editLetters(){
   curRoute = ['letters'];
@@ -949,7 +1100,8 @@ function editLetters(){
       <button class="kind vu" onclick="show(vuTpls)">밸류업고객</button>
       <button class="kind rc" onclick="show(()=>editTpl('rc'))">리쿠르팅</button>
     </div>
-    <p class="note">문구마다 [인사말] / [약속안내] 탭이 있습니다. 날짜·시간·장소는 약속안내 탭에서 정하고, [약속] 화면에서 고객마다 다시 고칠 수 있습니다.</p>`;
+    ${window.noAd ? '' : `<button class="btn setbtn" style="border-top:5px solid var(--vu)" onclick="show(()=>editTpl('ba'))">광고DB · 보장분석 <small>신청자에게 보내는 첫 문자</small></button>`}
+    <p class="note">문구마다 [인사말] / [약속안내] 탭이 있습니다${window.noAd ? '' : ' (보장분석은 인사말만)'}. 날짜·시간·장소는 약속안내 탭에서 정하고, [약속] 화면에서 고객마다 다시 고칠 수 있습니다.</p>`;
 }
 // 밸류업 문구 칸 (1.14.0): 명단에 있는 분류 이름 + 문구를 따로 써 둔 이름 (가나다순). 고정 목록 없음
 function vuGroups(){
@@ -991,7 +1143,7 @@ function editTpl(key){
     <label>호칭</label>
     <div class="namebar"><span class="lockname">🔒 고객 이름</span>${HONS.map(h=>`<button class="btn seg" id="hon_${h}" onclick="pickHon('${h}')">${h}</button>`).join('')}</div>
     <!-- 1.8.0: 인사말 / 약속안내 탭 (호칭은 두 탭이 같이 씀). 탭을 바꿔도 칸은 그대로 두고 숨기기만 해서 한 번에 저장 -->
-    <div class="tabs"><button id="tab_g" onclick="tplTab('g')">${key==='rc' ? '접수' : '인사말'}</button><button id="tab_a" onclick="tplTab('a')">${key==='rc' ? '약속' : '약속안내'}</button></div>
+    <div class="tabs${key==='ba' ? ' hidden' : ''}"><button id="tab_g" onclick="tplTab('g')">${key==='rc' ? '접수' : '인사말'}</button><button id="tab_a" onclick="tplTab('a')">${key==='rc' ? '약속' : '약속안내'}</button></div>
     <div id="pane_g">
       <p class="note" style="margin:8px 0 0">문자는 ${key==='rc' ? '맨 위 <b>[보험설계사 채용 상담 접수 안내]</b> 다음 줄부터 ' : ''}<b>고객 이름 + 호칭, 머리말</b> / 본문 / 마무리 순서로 이어집니다.</p>
       <!-- 1.12.1: 고객님 이름·내 이름(이름 + 직책) 자리. 마지막으로 누른 칸에 넣는다 -->
@@ -1015,7 +1167,7 @@ function editTpl(key){
   window._lastTa = 't_head';
   window._hon = t.hon;
   pickHon(t.hon);
-  tplTab(window._tplTabKey===key && window._tplTab || 'g');   // 같은 문구로 돌아오면 보던 탭 그대로 (리쿠르팅은 탭 이름이 접수 / 약속, 2.0.4)
+  tplTab(key==='ba' ? 'g' : window._tplTabKey===key && window._tplTab || 'g');   // 보장분석(2.2.0)은 약속안내 탭이 없다   // 같은 문구로 돌아오면 보던 탭 그대로 (리쿠르팅은 탭 이름이 접수 / 약속, 2.0.4)
 }
 function tplTab(x){
   window._tplTab = x; window._tplTabKey = window._tplKey;
@@ -1152,7 +1304,10 @@ window.onImported = function(rows){
 };
 
 undoGroups();   // 1.13.0 그룹 번호로 옮겨 둔 문구·고객을 분류 이름으로 되돌림 (1.14.0)
+// 2.2.1: 직접 완전히 끄고(최근 앱에서 밀어 끔) 다시 켜면 첫 화면. 다른 앱에 다녀오는 사이 휴대폰이 정리한 때만 보던 화면으로
+if(window.Android && Android.isRestored && !Android.isRestored()) clearNav();
 if(!restoreNav()) show(start);   // 휴대폰이 앱을 정리했다가 다시 열린 때는 보던 화면으로 (2.0.0: 첫 화면은 연락처 저장 / 고객관리)
+adSync(); adPull('ba', true);   // 2.1.1 광고DB: 켤 때마다 15분 확인을 다시 걸고, 시트의 새 신청자를 저절로 저장
 checkAfterCal();
 </script>
 </body>

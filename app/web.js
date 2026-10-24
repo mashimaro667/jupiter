@@ -6,10 +6,12 @@
 //  - 연락처 저장: 연락처 파일(.vcf) → [새로운 연락처 생성]
 // 자료(명단·기록·문구)는 이 휴대폰 브라우저 저장소에만 있다
 (function(){
-  const VERSION = '2.0.8';
+  const VERSION = '2.3.0';
   const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
   const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
   const say = t => window.toast ? toast(t) : alert(t);
+  // 광고DB는 웹판에 넣지 않는다 (2026-10-24 지시: '광고 DB파트 말고는 다 똑같이 웹버전에'). 화면(index.html)이 이 값을 보고 숨긴다
+  window.noAd = true;
 
   // ---------- 캘린더: 구글 캘린더 하나로 (1.8.2, 2026-10-11 지시: 아이폰도 구글 캘린더를 쓸 수 있으니 통합) ----------
   // 구글 캘린더 새 일정 화면(링크)을 채워 연다. 알림은 구글 캘린더의 기본 알림을 따른다
@@ -134,6 +136,31 @@
     inp.click();
   }
 
+  // ---------- 타임트리 (앱 2.0.11~2.0.12 웹판, 2.3.0) ----------
+  // 앱은 구글 캘린더에서 돌아오면 저절로 타임트리를 열지만, 웹은 누르는 동작이 있어야 다른 앱을 열 수 있어 [타임트리 열기]를 묻는다
+  let pendingTT = null;
+  function copyText(t){
+    try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).catch(() => copyOld(t)); return; } }catch(e){}
+    copyOld(t);
+  }
+  function copyOld(t){
+    const a = document.createElement('textarea'); a.value = t; a.setAttribute('readonly', ''); a.style.cssText = 'position:fixed;top:0;opacity:0';
+    document.body.appendChild(a); a.select(); a.setSelectionRange(0, t.length);
+    try{ document.execCommand('copy'); }catch(e){}
+    a.remove();
+  }
+  function openTimeTree(tt){
+    copyText(tt);   // 돌아온 사이 다른 것을 복사했을 수 있어 한 번 더
+    location.href = 'timetree://';
+    setTimeout(() => { if(document.visibilityState==='visible') say('타임트리를 열지 못했습니다. 타임트리를 직접 열어 붙여 넣어 주세요'); }, 1800);
+  }
+  function askTimeTree(tt){
+    if(!window.ask){ openTimeTree(tt); return; }
+    ask('', [['타임트리 열기', () => openTimeTree(tt), true], ['다시 복사', () => { copyText(tt); say('복사했습니다'); }], ['닫기']]);
+    const m = document.getElementById('mText'), e = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    if(m) m.innerHTML = `타임트리에 붙여 넣을 글을 복사해 두었습니다.<br><b style="font-size:18px">${e(tt)}</b><br>타임트리 새 일정에 붙여 넣고 저장해 주세요.`;
+  }
+
   // ---------- 앱의 window.Android 자리 ----------
   window.Android = {
     openSms(phone, text){
@@ -157,8 +184,14 @@
     },
     // 캘린더에 넣은 일정은 웹에서 지울 수 없다
     cancelAlarm(id){ setTimeout(()=>say('캘린더에 넣은 다시 전화 일정은 캘린더에서 지워 주세요'), 2800); },
-    // 약속: 구글 캘린더 일정
-    openCalendar(title, begin, end, place, desc){ return calendar(title, begin, end, place, desc); },
+    // 약속: 구글 캘린더 일정 → 돌아오면 타임트리 (앱 2.0.11, 웹판 2.3.0)
+    // 타임트리에 붙여 넣을 글(tt: 내 이름/고객 이름/지역/AP·OT)은 누를 때 바로 복사한다 (아이폰은 누른 순간에만 복사가 허용됨)
+    openCalendar(title, begin, end, place, desc, tt){
+      if(tt){ copyText(tt); pendingTT = tt; }
+      return calendar(title, begin, end, place, desc);
+    },
+    hasTimeTree(){ return true; },   // 웹은 설치 여부를 알 수 없다
+    isRestored(){ return true; },    // 2.2.1(완전히 끄면 첫 화면)은 앱만: 웹은 끈 것과 휴대폰이 정리한 것을 가리지 못해 보던 화면을 되살린다
     // 명단 양식 다운로드 (1.8.2): 같이 올린 양식 엑셀을 받는다
     saveForm(){
       const a = document.createElement('a');
@@ -177,12 +210,17 @@
     if(where==='home') return isIOS && !standalone ? `<p class="note" style="color:var(--miss)"><b>먼저 홈 화면에 추가하세요.</b> 사파리 아래 [공유] → [홈 화면에 추가] 후 홈 화면의 주피터로 여세요. 사파리에서 그냥 쓰면 오래 안 열 때 명단·기록이 지워질 수 있습니다.</p>` : '';
     return `<label style="margin-top:22px">캘린더 알림</label>
       <p class="note" style="margin-top:0">약속과 부재중 '다시 전화'는 <b>구글 캘린더</b> 일정으로 들어갑니다. 열린 구글 캘린더에서 [저장]을 눌러야 알림이 옵니다.
-      알림이 일정 시작 때 오게 하려면 구글 캘린더 설정 > 기본 알림을 '이벤트 시작 시'로 해 두세요.</p>
+      알림이 일정 시작 때 오게 하려면 구글 캘린더 설정 > 기본 알림을 '이벤트 시작 시'로 해 두세요.
+      약속은 [캘린더]를 누를 때 타임트리에 붙여 넣을 글(내 이름/고객 이름/지역/AP, 리쿠르팅은 OT)이 복사되고, 구글 캘린더에서 돌아오면 [타임트리 열기]가 나옵니다.</p>
       <p class="note">주피터 웹 v${VERSION} · 명단과 기록은 이 휴대폰에만 저장됩니다.</p>`;
   };
 
-  // 다른 앱(캘린더·문자)에 다녀오면: 앱의 onResume 과 같게 (약속 문자 보낼지 묻기)
-  document.addEventListener('visibilitychange', () => { if(document.visibilityState==='visible' && window.onResumeApp) window.onResumeApp(); });
+  // 다른 앱(캘린더·문자)에 다녀오면: 앱의 onResume 과 같게. 구글 캘린더에서 돌아온 때는 타임트리 열기를 묻는다 (2.3.0)
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState!=='visible') return;
+    if(pendingTT){ const tt = pendingTT; pendingTT = null; setTimeout(() => askTimeTree(tt), 400); }
+    if(window.onResumeApp) window.onResumeApp();
+  });
   // 휴대폰 다크 모드가 바뀌면 바로 따라감
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => window.applyTheme && applyTheme());
   // 저장소를 지우지 말라고 브라우저에 요청 + 꺼진 상태에서도 열리게
